@@ -12,7 +12,9 @@ penguin, a giraffe, a fridge, a cat. Each run starts with the same six, then
 the day's draw brings the rest, everyday things first, then the heavy ones,
 then the odd ones. A run that gets to 21 meets every one once.
 
-[Play it](https://kickflip.botbtc.fun).
+[Play it](https://kickflip.botbtc.fun). To share it on X, post
+[kickflip.botbtc.fun/x](https://kickflip.botbtc.fun/x): its card is a player,
+which X may show as the game itself, playable in the post.
 
 ## Play
 

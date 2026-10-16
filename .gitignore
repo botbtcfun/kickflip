@@ -4,3 +4,5 @@ dist/
 .dev.vars
 *.tsbuildinfo
 .DS_Store
+# Renders and recordings saved from the dev server
+.capture/

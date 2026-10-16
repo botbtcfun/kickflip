@@ -6,14 +6,13 @@ import { type Faces, facesOf } from './faces';
 import { mix, noise } from './paint';
 import { NOZZLES, sneaker } from './things';
 
-/** The stage's width in pixels as drawn; its height fits the screen, at least MIN_HEIGHT. */
+/** The stage's width in pixels as drawn, wider where a frame is wider; its height fits the screen, at least MIN_HEIGHT. */
 export const WIDTH = 288;
 export const MIN_HEIGHT = 480;
 /** Pixels drawn per pixel of height in the simulation. */
 const SCALE = 2;
 /** The street below the ground line, where the card sits. */
 const STREET = 128;
-const CX = WIDTH / 2;
 const TICK_MS = 1000 / TICK_HZ;
 /** Thousandths of a degree to radians. */
 const RAD = Math.PI / 180_000;
@@ -23,7 +22,8 @@ const METER_UP = 16;
 const METER_IN = 52;
 const METER_OUT = 57;
 /** The charge bar, beside the object while a key is held. */
-const BAR_X = CX + 64;
+/** How far right of the object the charge bar stands. */
+const BAR_OFFSET = 64;
 const BAR_W = 8;
 const BAR_H = 120;
 
@@ -124,19 +124,29 @@ export class Scene {
     return this.canvas.height;
   }
 
+  get width(): number {
+    return this.canvas.width;
+  }
+
+  /** Where the object stands across the stage: the middle. */
+  get cx(): number {
+    return Math.round(this.canvas.width / 2);
+  }
+
   /** Where objects stand, in pixels from the top. */
   get groundY(): number {
     return this.height - STREET;
   }
 
-  /** Sizes the stage: `height` pixels tall, shown `zoom` times as large. */
-  resize(height: number, zoom: number): void {
-    if (this.canvas.height !== height) {
+  /** Sizes the stage: `width` by `height` pixels, shown `zoom` times as large. */
+  resize(width: number, height: number, zoom: number): void {
+    if (this.canvas.height !== height || this.canvas.width !== width) {
+      this.canvas.width = width;
       this.canvas.height = height;
       this.backdrop = null;
     }
     this.zoom = zoom;
-    this.canvas.style.width = `${WIDTH * zoom}px`;
+    this.canvas.style.width = `${this.width * zoom}px`;
     this.canvas.style.height = `${height * zoom}px`;
     // A canvas resized is cleared: drawn again now, not a frame late.
     this.draw(this.session.game, this.alpha);
@@ -223,7 +233,7 @@ export class Scene {
     ctx.restore();
     if (this.flash > 0) {
       ctx.fillStyle = `rgba(255, 255, 255, ${(0.22 * this.flash) / 120})`;
-      ctx.fillRect(0, 0, WIDTH, this.height);
+      ctx.fillRect(0, 0, this.width, this.height);
     }
   }
 
@@ -241,7 +251,7 @@ export class Scene {
     for (let i = 0; i < n; i++) {
       const side = i % 2 ? 1 : -1;
       this.puffs.push({
-        x: CX + side * (t.length / 2) * Math.random(),
+        x: this.cx + side * (t.length / 2) * Math.random(),
         y: this.groundY - 1,
         vx: side * (30 + Math.random() * 70),
         vy: -(20 + Math.random() * 60),
@@ -262,32 +272,33 @@ export class Scene {
   /** Where each object is this frame, by phase. */
   private poses(game: Game, a: number): Pose[] {
     const thing = game.thing;
+    const cx = this.cx;
     const progress = (ticks: number) => Math.min(1, (game.phaseTicks + a) / ticks);
     const l = game.landing;
     if (game.phase === 'air' && game.flight) {
       const f = game.flight;
-      return [{ thing, x: CX, angle: lerp(f.prevAngle, f.angle, a), lift: (lerp(f.prevHeight, f.height, a) / 1000) * SCALE }];
+      return [{ thing, x: cx, angle: lerp(f.prevAngle, f.angle, a), lift: (lerp(f.prevHeight, f.height, a) / 1000) * SCALE }];
     }
     if (game.phase === 'landed' && l) {
       // A clean landing rocks back onto its wheels, slower the further off it came down; a miss topples over.
       const settle = l.clean ? 0.15 + (0.6 * Math.abs(l.angle - l.rest)) / QUARTER : 0.6;
       const k = smooth(progress(LAND_TICKS * Math.min(0.75, settle)));
-      return [{ thing, x: CX, angle: lerp(l.angle, l.rest, k), lift: 0 }];
+      return [{ thing, x: cx, angle: lerp(l.angle, l.rest, k), lift: 0 }];
     }
     if (game.phase === 'reset' && l) {
       // Back up onto its wheels with a little hop, the shorter way round.
       const k = smooth(progress(RESET_TICKS));
       const up = Math.round(l.rest / TURN) * TURN;
-      return [{ thing, x: CX, angle: lerp(l.rest, up, k), lift: Math.sin(Math.PI * k) * 16 }];
+      return [{ thing, x: cx, angle: lerp(l.rest, up, k), lift: Math.sin(Math.PI * k) * 16 }];
     }
     if (game.phase === 'roll') {
       const k = progress(ROLL_TICKS);
-      const out: Pose[] = [{ thing, x: lerp(WIDTH + thing.length, CX, easeOut(k)), angle: 0, lift: 0 }];
-      if (game.previous) out.push({ thing: game.previous, x: lerp(CX, -game.previous.length, easeIn(k)), angle: 0, lift: 0 });
+      const out: Pose[] = [{ thing, x: lerp(this.width + thing.length, cx, easeOut(k)), angle: 0, lift: 0 }];
+      if (game.previous) out.push({ thing: game.previous, x: lerp(cx, -game.previous.length, easeIn(k)), angle: 0, lift: 0 });
       return out;
     }
     const hop = (this.now - this.hopAt) / HOP_MS;
-    return [{ thing, x: CX, angle: 0, lift: hop < 1 ? Math.sin(Math.PI * hop) * 8 : 0 }];
+    return [{ thing, x: cx, angle: 0, lift: hop < 1 ? Math.sin(Math.PI * hop) * 8 : 0 }];
   }
 
   /** How far below its middle an object reaches, turned to `angle`. */
@@ -399,6 +410,7 @@ export class Scene {
     const bottom = this.groundY - 8;
     const top = bottom - BAR_H;
     ctx.fillStyle = '#14121c';
+    const BAR_X = this.cx + BAR_OFFSET;
     ctx.fillRect(BAR_X - 2, top - 2, BAR_W + 4, BAR_H + 4);
     ctx.fillStyle = '#2f2a44';
     ctx.fillRect(BAR_X, top, BAR_W, BAR_H);
@@ -467,17 +479,18 @@ export class Scene {
     const key = `${l.error}:${l.window}`;
     if (this.meter?.key !== key) this.meter = { key, canvas: meterImage(l) };
     const img = this.meter.canvas;
-    this.ctx.drawImage(img, Math.round(CX - img.width / 2), this.groundY - METER_UP - (METER_OUT + 5));
+    this.ctx.drawImage(img, Math.round(this.cx - img.width / 2), this.groundY - METER_UP - (METER_OUT + 5));
   }
 
   /** The sky, the skyline and the street, drawn once per size. */
   private street(): HTMLCanvasElement {
     if (this.backdrop) return this.backdrop;
     const c = document.createElement('canvas');
-    c.width = WIDTH;
+    c.width = this.width;
     c.height = this.height;
     const ctx = c.getContext('2d')!;
     const ground = this.groundY;
+    const WIDTH = this.width;
     // The sky, banded and dithered from night down to the sunset.
     const sky = ctx.createImageData(WIDTH, ground);
     const rgb = SKY.map((hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)));

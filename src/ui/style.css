@@ -386,3 +386,55 @@ body.touch .loading {
     animation: none;
   }
 }
+
+/* Inside a frame, such as a player card on X: no border, smaller type. */
+body.embed #app {
+  padding: 0;
+  height: 100%;
+}
+
+body.embed #stage {
+  border: 0;
+  box-shadow: none;
+}
+
+body.embed .strip {
+  padding: 6px;
+}
+
+body.embed .strip .score {
+  font-size: 12px;
+}
+
+body.embed .key {
+  width: 28px;
+  height: 28px;
+}
+
+body.embed .card .name {
+  font-size: 11px;
+}
+
+body.embed .card .meta {
+  font-size: 16px;
+}
+
+body.embed .overlay {
+  gap: 8px;
+  padding: 12px;
+  font-size: 16px;
+}
+
+body.embed .overlay h2.logo {
+  font-size: 22px;
+}
+
+.overlay a.full {
+  font-family: var(--pixel);
+  font-size: 10px;
+  color: var(--neon);
+}
+
+body.embed {
+  overflow: hidden;
+}

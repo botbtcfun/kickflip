@@ -17,6 +17,11 @@ const MAX_TOUCH_ZOOM = 2;
 /** On a desktop the stage is a portrait column at most this tall, in pixels drawn. */
 const MAX_DESK_HEIGHT = 640;
 const SOUND_KEY = 'kickflip:sound';
+/** The game's own address, for leaving a frame it's embedded in. */
+const HOME = 'https://kickflip.botbtc.fun/';
+/** Played inside a frame, such as a player card on X: ?embed=1. */
+const embed = new URLSearchParams(window.location.search).has('embed');
+document.body.classList.toggle('embed', embed);
 
 const stage = document.getElementById('stage')!;
 const hud = new Hud();
@@ -32,6 +37,8 @@ const sound = new Sound(!soundOn);
 const swipe = new Swipe(stage);
 
 const tap = () => (isTouch() ? 'TAP' : 'CLICK OR PRESS ENTER');
+/** In a frame, a way out to the whole game in its own tab. */
+const full = () => (embed ? `<p><a class="full" href="${HOME}" target="_blank" rel="noopener">PLAY FULL SCREEN ↗</a></p>` : '');
 
 class Run implements Session {
   game = new Game(`day:${day}`);
@@ -115,7 +122,7 @@ class Run implements Session {
 <p class="big">${points(g.score)}</p>
 <p>${g.index} LANDED · BEST STREAK ×${g.best}</p>
 <p class="dim">THE ${g.thing.name} GOT YOU</p>
-<p class="blink">${tap()} TO PLAY AGAIN</p>`);
+<p class="blink">${tap()} TO PLAY AGAIN</p>${full()}`);
   }
 }
 
@@ -132,7 +139,7 @@ function intro(): void {
   hud.overlay(`<h2 class="logo">KICKFLIP</h2>
 <p>${how}<br>LAND IT ON ITS WHEELS.</p>
 <p class="dim">The harder the flick, the more it spins.<br>Two turns land too, for double.<br>Every one is harder. Three lives.</p>
-<p class="blink">${tap()} TO START</p>`);
+<p class="blink">${tap()} TO START</p>${full()}`);
 }
 
 /**
@@ -149,29 +156,34 @@ function viewport(): { w: number; h: number } {
  * all stage, at a fractional zoom: phones are dense enough to hide uneven
  * pixels. In landscape the stage is as tall as the screen. On a desktop the
  * zoom is a whole number of the screen's own pixels, so every pixel drawn is
- * the same size, and the stage is a portrait column.
+ * the same size, and the stage is a portrait column. In a frame, it fills
+ * the frame: as tall as it, and as wide, however wide that is.
  */
-function fit(): { zoom: number; height: number } {
+function fit(): { zoom: number; width: number; height: number } {
   const { w, h } = viewport();
-  const floor2 = (z: number) => Math.max(0.5, Math.floor(z * 100) / 100);
+  const floor2 = (z: number) => Math.max(0.3, Math.floor(z * 100) / 100);
+  if (embed) {
+    const zoom = floor2(Math.min(w / WIDTH, h / MIN_HEIGHT));
+    return { zoom, width: Math.max(WIDTH, Math.floor(w / zoom)), height: Math.max(MIN_HEIGHT, Math.floor(h / zoom)) };
+  }
   if (isTouch()) {
     if (h >= w) {
       const zoom = floor2(Math.min(w / WIDTH, MAX_TOUCH_ZOOM));
-      return { zoom, height: Math.max(MIN_HEIGHT, Math.ceil(h / zoom)) };
+      return { zoom, width: WIDTH, height: Math.max(MIN_HEIGHT, Math.ceil(h / zoom)) };
     }
-    return { zoom: floor2(h / MIN_HEIGHT), height: MIN_HEIGHT };
+    return { zoom: floor2(h / MIN_HEIGHT), width: WIDTH, height: MIN_HEIGHT };
   }
   const dpr = window.devicePixelRatio || 1;
   const zoom = Math.max(1 / dpr, Math.floor(Math.min((w - 40) / WIDTH, (h - 40) / MIN_HEIGHT) * dpr) / dpr);
-  return { zoom, height: Math.min(MAX_DESK_HEIGHT, Math.max(MIN_HEIGHT, Math.floor((h - 40) / zoom))) };
+  return { zoom, width: WIDTH, height: Math.min(MAX_DESK_HEIGHT, Math.max(MIN_HEIGHT, Math.floor((h - 40) / zoom))) };
 }
 
 function layout(): void {
   const { w, h } = viewport();
   document.body.classList.toggle('portrait', h >= w);
   document.body.classList.toggle('landscape', h < w);
-  const { zoom, height } = fit();
-  scene.resize(height, zoom);
+  const { zoom, width, height } = fit();
+  scene.resize(width, height, zoom);
 }
 
 // Rotation, the browser's bars sliding in and out, and zoom all resize: lay out once a frame at most.
@@ -246,7 +258,9 @@ window.addEventListener('keydown', (e) => {
 document.addEventListener('pointerup', () => sound.unlock());
 window.addEventListener('keydown', () => sound.unlock());
 // A click, not a pointerdown, for the same reason.
-document.getElementById('overlay')!.addEventListener('click', () => {
+document.getElementById('overlay')!.addEventListener('click', (e) => {
+  // The full-screen link opens the game elsewhere; it doesn't start a run here.
+  if ((e.target as Element).closest('a')) return;
   if (!run.started || run.game.over) run.begin();
   else if (run.pausedByUser) run.togglePause();
 });

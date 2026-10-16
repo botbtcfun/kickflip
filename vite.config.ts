@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
 
@@ -190,8 +190,37 @@ function onefile(): Plugin {
   };
 }
 
+/**
+ * In development only: the page can POST a picture or a recording it made,
+ * the poster or a clip, to /__capture?name=..., and it lands in .capture/,
+ * which git ignores. Nothing of this is built or deployed.
+ */
+function capture(): Plugin {
+  return {
+    name: 'kickflip-capture',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/__capture', (req, res) => {
+        const name = new URL(req.url ?? '', 'http://dev').searchParams.get('name') ?? '';
+        if (req.method !== 'POST' || !/^[a-z0-9][a-z0-9.-]{0,60}$/.test(name)) {
+          res.statusCode = 400;
+          return res.end('bad capture');
+        }
+        const chunks: Buffer[] = [];
+        req.on('data', (c: Buffer) => chunks.push(c));
+        req.on('end', () => {
+          const dir = resolve(import.meta.dirname, '.capture');
+          mkdirSync(dir, { recursive: true });
+          writeFileSync(join(dir, name), Buffer.concat(chunks));
+          res.end('saved');
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [icon(), icons(), loader(), onefile()],
+  plugins: [icon(), icons(), loader(), onefile(), capture()],
   build: {
     target: 'es2022',
     // Nothing is loaded on demand.
