@@ -4,8 +4,10 @@ import { INTENSITY_MAX, INTENSITY_MIN } from '../sim/rules';
 const FULL_SPEED = (10 * INTENSITY_MAX) / 2000;
 /** A swipe's speed is read over its last this many ms: the flick, not the wind-up. */
 const SPEED_MS = 80;
-/** A swipe shorter than this, upward, is a tap. */
+/** A swipe shorter than this, upward, is a tap, or a hold. */
 const MIN_TRAVEL_PX = 24;
+/** A finger or a button held still this long is charging a flick, as a held key does. */
+const HOLD_MS = 150;
 /** Holding a key this long is the strongest flick: half a second is a standard single flip. */
 const FULL_HOLD_MS = INTENSITY_MAX;
 const CHARGE_KEYS = new Set(['ArrowUp', 'KeyW', 'Space']);
@@ -30,12 +32,13 @@ export interface LastSwipe {
  * Turns a swipe up into a flick's intensity, from INTENSITY_MIN to
  * INTENSITY_MAX: the swipe's speed over its last SPEED_MS, measured in
  * stage heights per second, so a phone and a monitor read the same flick the
- * same. Fingers are read from touch events, which iOS keeps sending all
- * through a swipe even where it would rather scroll; a mouse or a pen from
- * pointer events. Times come from the page's own clock. On a keyboard,
- * holding ↑ or Space and letting go flicks, as hard as it was held long, and
- * charge() says how far it has got. Anything too short or too slow is a tap.
- * The game takes one flick a tick, with sample().
+ * same. Holding still and letting go flicks too, as hard as it was held
+ * long: a finger, a mouse button, or ↑ or Space on a keyboard; charge() says
+ * how far a hold has got. Fingers are read from touch events, which iOS
+ * keeps sending all through a swipe even where it would rather scroll; a
+ * mouse or a pen from pointer events. Times come from the page's own clock.
+ * Anything too short or too slow is a tap. The game takes one flick a tick,
+ * with sample().
  */
 export class Swipe {
   /** Called for a tap, or a swipe too weak to flick. */
@@ -48,6 +51,9 @@ export class Swipe {
   private finger: number | null = null;
   private samples: Sample[] = [];
   private startY = 0;
+  /** When the finger or the button went down, and the furthest it has strayed since. */
+  private downAt: number | null = null;
+  private strayed = 0;
   private heldSince: number | null = null;
 
   constructor(private readonly stage: HTMLElement) {
@@ -130,9 +136,19 @@ export class Swipe {
     if (!on) this.reset();
   }
 
-  /** How far a held key has charged a flick, from 0 to 1, or null when none is held. */
+  /** How far a hold has charged a flick, from 0 to 1, or null when nothing is held: a key, or a finger or button held still. */
   charge(): number | null {
-    return this.heldSince === null ? null : Math.min(1, (performance.now() - this.heldSince) / FULL_HOLD_MS);
+    const now = performance.now();
+    if (this.heldSince !== null) return Math.min(1, (now - this.heldSince) / FULL_HOLD_MS);
+    const held = this.holding(now);
+    return held === null ? null : Math.min(1, held / FULL_HOLD_MS);
+  }
+
+  /** How long a finger or button has been held still, once that's long enough to count as a hold. */
+  private holding(now: number): number | null {
+    if (this.downAt === null || this.strayed >= MIN_TRAVEL_PX) return null;
+    const held = now - this.downAt;
+    return held >= HOLD_MS ? held : null;
   }
 
   /** The flick for this tick, or 0. */
@@ -147,6 +163,7 @@ export class Swipe {
     this.pointer = null;
     this.finger = null;
     this.samples = [];
+    this.downAt = null;
     this.heldSince = null;
   }
 
@@ -157,24 +174,36 @@ export class Swipe {
 
   private begin(y: number): void {
     this.startY = y;
-    this.samples = [{ t: performance.now(), y }];
+    this.downAt = performance.now();
+    this.strayed = 0;
+    this.samples = [{ t: this.downAt, y }];
   }
 
   private track(y: number): void {
     const t = performance.now();
+    this.strayed = Math.max(this.strayed, Math.abs(this.startY - y));
     this.samples.push({ t, y });
     while (this.samples.length > 2 && this.samples[1]!.t < t - KEEP_MS) this.samples.shift();
   }
 
   /**
-   * The end of a swipe: let go, or cancelled by the browser, which still
-   * counts, from where it had got to.
+   * The end of a swipe or a hold: let go, or cancelled by the browser, which
+   * still counts, from where it had got to.
    */
   private release(y: number | null, how: string): void {
+    const now = performance.now();
+    const held = this.holding(now);
     this.pointer = null;
     this.finger = null;
+    this.downAt = null;
     const end = y ?? this.samples[this.samples.length - 1]?.y ?? this.startY;
-    this.samples.push({ t: performance.now(), y: end });
+    if (held !== null && Math.abs(this.startY - end) < MIN_TRAVEL_PX) {
+      // Held still, then let go: as hard as it was held long.
+      const intensity = Math.round(Math.min(1, held / FULL_HOLD_MS) * INTENSITY_MAX);
+      this.last = { travel: 0, heights: 0, intensity, how: `hold ${Math.round(held)}ms ${how}`, samples: this.samples.length };
+      return this.flick(intensity);
+    }
+    this.samples.push({ t: now, y: end });
     const travel = this.startY - end;
     const heights = speed(this.samples) / Math.max(1, this.stage.clientHeight);
     const intensity = travel < MIN_TRAVEL_PX ? 0 : Math.round(Math.min(1, heights / FULL_SPEED) * INTENSITY_MAX);

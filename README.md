@@ -21,9 +21,9 @@ which X may show as the game itself, playable in the post.
 
 | | |
 |---|---|
-| Phone | Swipe up anywhere. The faster the swipe, the more it spins |
-| Mouse | Drag up and let go, the same way |
-| Keyboard | Hold ↑ or Space and let go: the longer, the harder. A bar shows how far it's charged |
+| Phone | Hold anywhere and let go: the longer, the more it spins. A bar shows how far it's charged. Or swipe up: the faster, the more |
+| Mouse | Hold the button and let go, or drag up and let go |
+| Keyboard | Hold ↑ or Space and let go |
 | P or Esc | Pause |
 | M | Sound on or off |
 

@@ -135,10 +135,10 @@ swipe.onTap = () => {
 document.getElementById('game')!.append(scene.canvas);
 
 function intro(): void {
-  const how = isTouch() ? 'SWIPE UP TO FLIP IT.' : 'DRAG UP, OR HOLD ↑<br>AND LET GO.';
+  const how = isTouch() ? 'SWIPE UP, OR HOLD<br>AND LET GO.' : 'HOLD THE MOUSE OR ↑<br>AND LET GO, OR DRAG UP.';
   hud.overlay(`<h2 class="logo">KICKFLIP</h2>
 <p>${how}<br>LAND IT ON ITS WHEELS.</p>
-<p class="dim">The harder the flick, the more it spins.<br>Two turns land too, for double.<br>Every one is harder. Three lives.</p>
+<p class="dim">The longer the hold, or the faster the swipe,<br>the more it spins. Two turns land too, for double.<br>Every one is harder. Three lives.</p>
 <p class="blink">${tap()} TO START</p>${full()}`);
 }
 
