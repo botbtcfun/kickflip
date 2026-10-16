@@ -271,5 +271,21 @@ document.body.classList.add('ready');
 layout();
 scene.start();
 
+// ?debug shows what the last swipe came to and what the browser reports about the screen, for checking a phone.
+if (new URLSearchParams(window.location.search).has('debug')) {
+  const box = document.createElement('div');
+  box.className = 'debug';
+  document.body.append(box);
+  setInterval(() => {
+    const l = swipe.last;
+    box.textContent = [
+      l ? `swipe ${l.how}: ${l.travel}px, ${l.heights} h/s -> ${l.intensity} (${l.samples} samples)` : 'no swipe yet',
+      `flicks on: ${swipe.enabled} paused: ${run.paused} phase: ${run.game.phase}`,
+      `screen ${window.innerWidth}x${window.innerHeight} stage ${stage.clientHeight}px`,
+      document.body.className,
+    ].join('\n');
+  }, 200);
+}
+
 // For checking the game from the browser console while developing.
 if (import.meta.env.DEV) Object.assign(window, { kickflip: run, scene, swipe, sound });

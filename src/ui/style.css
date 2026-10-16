@@ -43,6 +43,12 @@ body.touch {
   overflow: hidden;
 }
 
+/* On a touch screen nothing pans or zooms: every swipe is the game's. Taps on buttons still work. */
+body.touch,
+body.touch * {
+  touch-action: none;
+}
+
 #app {
   display: flex;
   align-items: center;
@@ -437,4 +443,20 @@ body.embed .overlay h2.logo {
 
 body.embed {
   overflow: hidden;
+}
+
+/* ?debug: what the last swipe came to. */
+.debug {
+  position: fixed;
+  left: 4px;
+  bottom: 4px;
+  z-index: 9;
+  padding: 4px 6px;
+  font-family: var(--crt);
+  font-size: 16px;
+  line-height: 1.1;
+  white-space: pre;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.7);
+  pointer-events: none;
 }

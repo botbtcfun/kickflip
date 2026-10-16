@@ -17,40 +17,102 @@ interface Sample {
   y: number;
 }
 
+/** What the last swipe came to, for ?debug: how far, how fast, what it read as, and how it ended. */
+export interface LastSwipe {
+  travel: number;
+  heights: number;
+  intensity: number;
+  how: string;
+  samples: number;
+}
+
 /**
  * Turns a swipe up into a flick's intensity, from INTENSITY_MIN to
  * INTENSITY_MAX: the swipe's speed over its last SPEED_MS, measured in
  * stage heights per second, so a phone and a monitor read the same flick the
- * same. A mouse drag counts as a swipe. On a keyboard, holding ↑ or Space and
- * letting go flicks, as hard as it was held long, and charge() says how far
- * it has got. Anything too short or too slow is a tap. The game takes one
- * flick a tick, with sample().
+ * same. Fingers are read from touch events, which iOS keeps sending all
+ * through a swipe even where it would rather scroll; a mouse or a pen from
+ * pointer events. Times come from the page's own clock. On a keyboard,
+ * holding ↑ or Space and letting go flicks, as hard as it was held long, and
+ * charge() says how far it has got. Anything too short or too slow is a tap.
+ * The game takes one flick a tick, with sample().
  */
 export class Swipe {
   /** Called for a tap, or a swipe too weak to flick. */
   onTap: () => void = () => {};
+  last: LastSwipe | null = null;
   private on = false;
   private queued = 0;
+  /** The mouse or pen pointer, or the finger, being read. */
   private pointer: number | null = null;
+  private finger: number | null = null;
   private samples: Sample[] = [];
   private startY = 0;
   private heldSince: number | null = null;
 
   constructor(private readonly stage: HTMLElement) {
-    stage.addEventListener('pointerdown', (e) => this.down(e));
-    stage.addEventListener('pointermove', (e) => this.move(e));
-    stage.addEventListener('pointerup', (e) => this.up(e));
-    stage.addEventListener('pointercancel', (e) => {
-      if (e.pointerId === this.pointer) this.pointer = null;
+    stage.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'touch' || (e.pointerType === 'mouse' && e.button !== 0) || !this.free(e)) return;
+      e.preventDefault();
+      this.pointer = e.pointerId;
+      this.begin(e.clientY);
+      // Keeps the drag when it leaves the stage. A pointer already gone can't be captured; it ends soon anyway.
+      try {
+        stage.setPointerCapture(e.pointerId);
+      } catch {
+        // Read it uncaptured.
+      }
     });
+    stage.addEventListener('pointermove', (e) => e.pointerId === this.pointer && this.track(e.clientY));
+    stage.addEventListener('pointerup', (e) => e.pointerId === this.pointer && this.release(e.clientY, 'up'));
+    stage.addEventListener('pointercancel', (e) => e.pointerId === this.pointer && this.release(null, 'cancel'));
+    stage.addEventListener('lostpointercapture', (e) => e.pointerId === this.pointer && this.release(null, 'lost'));
+
+    const touch = (e: TouchEvent) => [...e.changedTouches].find((t) => t.identifier === this.finger);
+    stage.addEventListener(
+      'touchstart',
+      (e) => {
+        const t = e.changedTouches[0];
+        if (!t || !this.free(e)) return;
+        // No scrolling, no zoom, no long-press menu: the swipe is the game's.
+        e.preventDefault();
+        this.finger = t.identifier;
+        this.begin(t.clientY);
+      },
+      { passive: false },
+    );
+    stage.addEventListener(
+      'touchmove',
+      (e) => {
+        const t = touch(e);
+        if (!t) return;
+        e.preventDefault();
+        this.track(t.clientY);
+      },
+      { passive: false },
+    );
+    for (const [type, how] of [
+      ['touchend', 'up'],
+      ['touchcancel', 'cancel'],
+    ] as const) {
+      stage.addEventListener(
+        type,
+        (e) => {
+          const t = touch(e);
+          if (t) this.release(t.clientY, how);
+        },
+        { passive: false },
+      );
+    }
+
     window.addEventListener('keydown', (e) => {
       if (!this.on || e.repeat || !CHARGE_KEYS.has(e.code) || e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement) return;
       e.preventDefault();
-      this.heldSince = e.timeStamp;
+      this.heldSince = performance.now();
     });
     window.addEventListener('keyup', (e) => {
       if (this.heldSince === null || !CHARGE_KEYS.has(e.code)) return;
-      const held = e.timeStamp - this.heldSince;
+      const held = performance.now() - this.heldSince;
       this.heldSince = null;
       this.flick(Math.round(Math.min(1, held / FULL_HOLD_MS) * INTENSITY_MAX));
     });
@@ -83,42 +145,42 @@ export class Swipe {
   reset(): void {
     this.queued = 0;
     this.pointer = null;
+    this.finger = null;
     this.samples = [];
     this.heldSince = null;
   }
 
-  private down(e: PointerEvent): void {
-    // Buttons and screens take their own taps; one finger flicks at a time.
-    if (!this.on || this.pointer !== null || (e.pointerType === 'mouse' && e.button !== 0)) return;
-    if ((e.target as Element).closest('button, a, input, .overlay')) return;
-    e.preventDefault();
-    this.pointer = e.pointerId;
-    this.startY = e.clientY;
-    this.samples = [{ t: e.timeStamp, y: e.clientY }];
-    // Keeps the swipe when the finger leaves the stage. A pointer already gone can't be captured; it ends soon anyway.
-    try {
-      this.stage.setPointerCapture(e.pointerId);
-    } catch {
-      // Read it uncaptured.
-    }
+  /** Whether a new swipe may start here: in play, none under way, and not on a button or a screen, which take their own taps. */
+  private free(e: Event): boolean {
+    return this.on && this.pointer === null && this.finger === null && !(e.target as Element).closest('button, a, input, .overlay');
   }
 
-  private move(e: PointerEvent): void {
-    if (e.pointerId !== this.pointer) return;
-    // Phones report more positions than they send events: take them all.
-    const all = e.getCoalescedEvents?.() ?? [];
-    for (const c of all.length ? all : [e]) this.samples.push({ t: c.timeStamp, y: c.clientY });
-    const old = e.timeStamp - KEEP_MS;
-    while (this.samples.length > 2 && this.samples[1]!.t < old) this.samples.shift();
+  private begin(y: number): void {
+    this.startY = y;
+    this.samples = [{ t: performance.now(), y }];
   }
 
-  private up(e: PointerEvent): void {
-    if (e.pointerId !== this.pointer) return;
+  private track(y: number): void {
+    const t = performance.now();
+    this.samples.push({ t, y });
+    while (this.samples.length > 2 && this.samples[1]!.t < t - KEEP_MS) this.samples.shift();
+  }
+
+  /**
+   * The end of a swipe: let go, or cancelled by the browser, which still
+   * counts, from where it had got to.
+   */
+  private release(y: number | null, how: string): void {
     this.pointer = null;
-    this.samples.push({ t: e.timeStamp, y: e.clientY });
-    const travel = this.startY - e.clientY;
-    if (travel < MIN_TRAVEL_PX) return this.onTap();
-    this.flick(Math.round(Math.min(1, speed(this.samples) / Math.max(1, this.stage.clientHeight) / FULL_SPEED) * INTENSITY_MAX));
+    this.finger = null;
+    const end = y ?? this.samples[this.samples.length - 1]?.y ?? this.startY;
+    this.samples.push({ t: performance.now(), y: end });
+    const travel = this.startY - end;
+    const heights = speed(this.samples) / Math.max(1, this.stage.clientHeight);
+    const intensity = travel < MIN_TRAVEL_PX ? 0 : Math.round(Math.min(1, heights / FULL_SPEED) * INTENSITY_MAX);
+    this.last = { travel: Math.round(travel), heights: Math.round(heights * 100) / 100, intensity, how, samples: this.samples.length };
+    if (travel < MIN_TRAVEL_PX) this.onTap();
+    else this.flick(intensity);
   }
 
   private flick(intensity: number): void {
