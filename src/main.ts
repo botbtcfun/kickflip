@@ -57,8 +57,10 @@ class Run implements Session {
         // The Roadster and the cat land anything: say so when the flick alone would have missed.
         const quirk = this.game.thing.quirk;
         const missed = Math.abs(l.error) > l.window;
-        const saved = !missed ? '' : quirk === 'thrusters' ? 'THRUSTERS SAVED IT' : quirk === 'feet' ? 'ON ITS FEET, AS EVER' : '';
-        hud.verdict(l, (scene.groundY - 128) * scene.zoom, saved);
+        let note = !missed ? '' : quirk === 'thrusters' ? 'THRUSTERS SAVED IT' : quirk === 'feet' ? 'ON ITS FEET, AS EVER' : '';
+        // The last life went, and the bonus one came: the surprise.
+        if (events.some((b) => b.type === 'bonus')) note = 'BONUS LIFE! ONE MORE GO';
+        hud.verdict(l, (scene.groundY - 128) * scene.zoom, note);
       } else if (e.type === 'over') this.gameOver();
     }
   }

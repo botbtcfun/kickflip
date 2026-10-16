@@ -15,13 +15,16 @@ export type GameEvent =
   | { type: 'launch'; intensity: number }
   | { type: 'land'; landing: Landing }
   | { type: 'next'; id: string }
+  /** The last life went, and the bonus one came instead. */
+  | { type: 'bonus' }
   | { type: 'over' };
 
 /**
  * A run: objects one after another, each flipped until it lands on its
- * wheels, three lives in all. Pure and deterministic: the same seed and the
- * same flicks on the same ticks give the same run, in a browser, a Worker or
- * a script. No clock, no Math.random, integers only.
+ * wheels, three lives in all, and a bonus one when they're gone. Pure and
+ * deterministic: the same seed and the same flicks on the same ticks give the
+ * same run, in a browser, a Worker or a script. No clock, no Math.random,
+ * integers only.
  */
 export class Game {
   private readonly sequence: Sequence;
@@ -39,6 +42,8 @@ export class Game {
   /** How the last flip landed, until the next flick. */
   landing: Landing | null = null;
   lives = R.LIVES;
+  /** Whether the bonus life has come: once the last life goes, once a run. */
+  bonusUsed = false;
   score = 0;
   /** Clean landings in a row, and the longest such run. */
   streak = 0;
@@ -97,7 +102,7 @@ export class Game {
   /** A 32-bit hash of the state: two runs that end the same hash the same. */
   hash(): number {
     const f = this.flight;
-    const parts = [this.tick, this.index, this.lives, this.score, this.streak, this.best, this.perfects, PHASES.indexOf(this.phase), this.phaseTicks, this.queued, this.over ? 1 : 0];
+    const parts = [this.tick, this.index, this.lives, this.bonusUsed ? 1 : 0, this.score, this.streak, this.best, this.perfects, PHASES.indexOf(this.phase), this.phaseTicks, this.queued, this.over ? 1 : 0];
     if (f) parts.push(f.intensity, f.t, f.angle, f.height);
     let h = 0x811c9dc5;
     for (const n of parts) {
@@ -129,6 +134,12 @@ export class Game {
     this.landing = landing;
     this.enter('landed');
     this.events.push({ type: 'land', landing });
+    // Three lives, officially; then one more, as a surprise.
+    if (this.lives === 0 && !this.bonusUsed) {
+      this.bonusUsed = true;
+      this.lives = R.BONUS_LIVES;
+      this.events.push({ type: 'bonus' });
+    }
   }
 
   private afterLanding(): void {

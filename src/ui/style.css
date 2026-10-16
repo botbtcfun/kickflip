@@ -186,6 +186,24 @@ body.touch .loading {
   color: rgba(255, 244, 230, 0.2);
 }
 
+/* The bonus life: gold, and it beats. */
+.lives .bonus {
+  color: var(--sodium);
+  animation: beat 0.9s ease-in-out infinite;
+}
+
+@keyframes beat {
+  50% {
+    transform: scale(1.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lives .bonus {
+    animation: none;
+  }
+}
+
 .key {
   display: grid;
   place-items: center;

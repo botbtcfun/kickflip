@@ -274,10 +274,38 @@ describe('a run', () => {
     expect(game.level).toBe(3);
   });
 
-  it('is over after three misses, with the object that did it', () => {
+  it('gives one bonus life when the three are gone, once', () => {
+    const game = new Game('day:1');
+    flick(game, 500);
+    const bonus: number[] = [];
+    for (let i = 0; i < 3; i++) {
+      settle(game);
+      game.step(700);
+      for (let k = 0; k < 200 && game.phase === 'air'; k++) {
+        game.step(0);
+        if (game.events.some((e) => e.type === 'bonus')) bonus.push(i);
+      }
+    }
+    // The third miss takes the last life and brings the bonus one at once.
+    expect(bonus).toEqual([2]);
+    expect(game.bonusUsed).toBe(true);
+    expect(game.lives).toBe(R.BONUS_LIVES);
+    settle(game);
+    expect(game.over).toBe(false);
+    // Land one, and the bonus life carries on.
+    flick(game, 500);
+    settle(game);
+    expect(game.lives).toBe(1);
+    expect(game.over).toBe(false);
+  });
+
+  it('is over after the bonus life goes too, with the object that did it', () => {
     const game = new Game('day:1');
     flick(game, 500);
     for (let i = 0; i < 3; i++) flick(game, 700);
+    settle(game);
+    expect(game.over).toBe(false);
+    flick(game, 700);
     expect(game.over).toBe(false);
     settle(game);
     expect(game.over).toBe(true);
@@ -359,14 +387,14 @@ describe('the input log', () => {
 
   it('matches the recorded golden run for this version of the rules', () => {
     const { game, log } = scripted('golden');
-    expect(R.RULES_VERSION).toBe(3);
+    expect(R.RULES_VERSION).toBe(4);
     expect({ score: game.score, landed: game.index, tick: game.tick, hash: game.hash(), bytes: log.encode().length }).toMatchInlineSnapshot(`
       {
-        "bytes": 58,
-        "hash": 2399081341,
-        "landed": 7,
-        "score": 8800,
-        "tick": 1268,
+        "bytes": 76,
+        "hash": 3951030693,
+        "landed": 9,
+        "score": 12200,
+        "tick": 1681,
       }
     `);
   });
@@ -381,7 +409,7 @@ describe('the input log', () => {
     for (const bad of ['x', '1.1', '0.dw', '1.dw.3', '1.1g4', '-1.dw', '1.DW']) expect(() => InputLog.decode(bad), bad).toThrow();
     const game = new Game('day:1');
     // A flick after the run is over.
-    expect(() => replay(game, [[1, 500], ...Array.from({ length: 4 }, (_, i) => [200 * (i + 1), 700] as [number, number]), [5000, 500]], 100_000)).toThrow();
+    expect(() => replay(game, [[1, 500], ...Array.from({ length: 5 }, (_, i) => [200 * (i + 1), 700] as [number, number]), [5000, 500]], 100_000)).toThrow();
   });
 });
 
