@@ -11,9 +11,9 @@ import { Hud, isTouch, points } from './ui/hud';
 /** The UTC day: the same objects for everyone, all day. */
 const day = Math.floor(Date.now() / 86_400_000);
 /** Tablets stop growing the stage here. */
-const MAX_TOUCH_ZOOM = 4;
-/** On a desktop the stage is a portrait column at most this tall, in game pixels. */
-const MAX_DESK_HEIGHT = 320;
+const MAX_TOUCH_ZOOM = 2;
+/** On a desktop the stage is a portrait column at most this tall, in pixels drawn. */
+const MAX_DESK_HEIGHT = 640;
 const SOUND_KEY = 'kickflip:sound';
 
 const stage = document.getElementById('stage')!;
@@ -56,7 +56,7 @@ class Run implements Session {
         const l = e.landing;
         // The Roadster lands anything: say so when the flick alone would have missed.
         const saved = this.game.thing.quirk === 'thrusters' && Math.abs(l.error) > l.window ? 'THRUSTERS SAVED IT' : '';
-        hud.verdict(l, (scene.groundY - 62) * scene.zoom, saved);
+        hud.verdict(l, (scene.groundY - 128) * scene.zoom, saved);
       } else if (e.type === 'over') this.gameOver();
     }
   }
@@ -105,10 +105,11 @@ function viewport(): { w: number; h: number } {
 }
 
 /**
- * The zoom, and the stage's height in game pixels. A phone in portrait is
+ * The zoom, and the stage's height in pixels drawn. A phone in portrait is
  * all stage, at a fractional zoom: phones are dense enough to hide uneven
  * pixels. In landscape the stage is as tall as the screen. On a desktop the
- * zoom is whole, so pixels stay square, and the stage is a portrait column.
+ * zoom is a whole number of the screen's own pixels, so every pixel drawn is
+ * the same size, and the stage is a portrait column.
  */
 function fit(): { zoom: number; height: number } {
   const { w, h } = viewport();
@@ -120,7 +121,8 @@ function fit(): { zoom: number; height: number } {
     }
     return { zoom: floor2(h / MIN_HEIGHT), height: MIN_HEIGHT };
   }
-  const zoom = Math.max(1, Math.floor(Math.min((w - 40) / WIDTH, (h - 40) / MIN_HEIGHT)));
+  const dpr = window.devicePixelRatio || 1;
+  const zoom = Math.max(1 / dpr, Math.floor(Math.min((w - 40) / WIDTH, (h - 40) / MIN_HEIGHT) * dpr) / dpr);
   return { zoom, height: Math.min(MAX_DESK_HEIGHT, Math.max(MIN_HEIGHT, Math.floor((h - 40) / zoom))) };
 }
 

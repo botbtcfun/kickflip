@@ -22,8 +22,9 @@ interface Sample {
  * INTENSITY_MAX: the swipe's speed over its last SPEED_MS, measured in
  * stage heights per second, so a phone and a monitor read the same flick the
  * same. A mouse drag counts as a swipe. On a keyboard, holding ↑ or Space and
- * letting go flicks, as hard as it was held long. Anything too short or too
- * slow is a tap. The game takes one flick a tick, with sample().
+ * letting go flicks, as hard as it was held long, and charge() says how far
+ * it has got. Anything too short or too slow is a tap. The game takes one
+ * flick a tick, with sample().
  */
 export class Swipe {
   /** Called for a tap, or a swipe too weak to flick. */
@@ -65,6 +66,11 @@ export class Swipe {
     if (on === this.on) return;
     this.on = on;
     if (!on) this.reset();
+  }
+
+  /** How far a held key has charged a flick, from 0 to 1, or null when none is held. */
+  charge(): number | null {
+    return this.heldSince === null ? null : Math.min(1, (performance.now() - this.heldSince) / FULL_HOLD_MS);
   }
 
   /** The flick for this tick, or 0. */
