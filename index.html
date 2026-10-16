@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#1b1440" />
+    <title>Kickflip</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Kickflip" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="description" content="Flick it, flip it, land it on its wheels. Object after object, each one harder. Three lives." />
+  </head>
+  <body>
+    <main id="app">
+      <section id="stage">
+        <div id="loading" class="loading" role="status">
+          <!-- icon -->
+          <span class="bar"><span id="load-bar"></span></span>
+          <p id="load-text">LOADING</p>
+          <noscript><p>KICKFLIP NEEDS JAVASCRIPT</p></noscript>
+        </div>
+        <div id="game"></div>
+        <header id="strip" class="strip">
+          <button id="pause" class="key" type="button" aria-label="Pause">II</button>
+          <p class="score"><span id="score">0</span><span id="streak" class="streak"></span></p>
+          <p id="lives" class="lives" aria-label="Lives"></p>
+          <button id="sound" class="key" type="button" aria-label="Sound" aria-pressed="true">
+            <svg viewBox="0 0 10 10"><path d="M1 3.5h2L6 1v8L3 6.5H1z" /><path class="on" d="M7 3q1.5 2 0 4M8.3 1.8q2.6 3.2 0 6.4" fill="none" stroke="currentColor" /><path class="off" d="m7 3.5 2.5 3m0-3L7 6.5" fill="none" stroke="currentColor" /></svg>
+          </button>
+        </header>
+        <div id="verdict" class="verdict" aria-live="polite"></div>
+        <footer id="card" class="card">
+          <p id="card-name" class="name"></p>
+          <p id="card-meta" class="meta"></p>
+        </footer>
+        <div id="overlay" class="overlay" hidden></div>
+      </section>
+    </main>
+    <script src="/loader.js"></script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

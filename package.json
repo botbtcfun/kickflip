@@ -1,0 +1,29 @@
+{
+  "name": "@botbtc/kickflip",
+  "version": "0.0.0",
+  "description": "Kickflip: flick objects into a kickflip and land them on their wheels, one after another.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "vite --port 5174 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 5174 --strictPort",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "deploy": "pnpm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "@fontsource/press-start-2p": "^5.3.0",
+    "@fontsource/vt323": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.2",
+    "vite": "5.4.21",
+    "vitest": "^2.1.8",
+    "wrangler": "^4.145.0"
+  }
+}

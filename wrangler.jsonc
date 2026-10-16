@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The game: the Vite build in dist/, served as static files, and a Worker
+  // that will hold the daily leaderboard under /api.
+  "name": "kickflip",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-30",
+  "assets": { "directory": "./dist", "binding": "ASSETS" },
+  // Served only on its own domain, once it has one: no workers.dev or
+  // preview addresses, which carry the account's subdomain.
+  "workers_dev": false,
+  "preview_urls": false
+}
