@@ -10,6 +10,32 @@ export interface Faces {
   side: HTMLCanvasElement;
   top: HTMLCanvasElement;
   bottom: HTMLCanvasElement;
+  /** The same faces upside down, for drawing a column of one turned over. */
+  flipped: { side: HTMLCanvasElement; top: HTMLCanvasElement; bottom: HTMLCanvasElement };
+  /** The object's shape column by column, from its faces. */
+  cols: Columns;
+}
+
+/**
+ * Per column along the length, in the faces' own pixels: where the roof is
+ * and where the side ends below it, counted down the side face; where the
+ * floor is, which the underside is drawn at (above any wheels); and how far
+ * across the object reaches, counted across the roof face from its far edge.
+ */
+export interface Columns {
+  roof: Float32Array;
+  base: Float32Array;
+  floor: Float32Array;
+  far: Float32Array;
+  near: Float32Array;
+}
+
+/** What a painter makes: the three faces, and where the floor is if it isn't the side's bottom. */
+interface Paint {
+  side: HTMLCanvasElement;
+  top: HTMLCanvasElement;
+  bottom: HTMLCanvasElement;
+  floor?: (x: number) => number;
 }
 
 /** Where the Roadster's thrusters sit under its floor, as shares of its length from the nose. */
@@ -124,7 +150,7 @@ const ROADSTER_HALF: Points = [
  * canopy, on big wheels, with a light bar across the nose, a red one across
  * the tail, and thruster nozzles under its floor.
  */
-function roadster(t: Thing): Faces {
+function roadster(t: Thing): Paint {
   const { length: L, height: H, width: W } = t;
   const top: Points = [
     [0, 12.5],
@@ -235,11 +261,11 @@ function roadster(t: Thing): Faces {
     return '#1c1c24';
   });
 
-  return { side, top: roof, bottom: under };
+  return { side, top: roof, bottom: under, floor: (x) => along(bottom, x) };
 }
 
 /** A skateboard: maple deck with kicktails, grip on top, a graphic underneath, trucks and four wheels. */
-function skateboard(t: Thing): Faces {
+function skateboard(t: Thing): Paint {
   const { length: L, height: H, width: W } = t;
   const deck: Points = [
     [0, 0.8],
@@ -277,11 +303,11 @@ function skateboard(t: Thing): Faces {
     if (x > L / 2 - 5 && x < L / 2 + 5) return '#ff4d79';
     return (x + y) % 12 < 3 ? '#3df5ff' : '#3d6cff';
   });
-  return { side, top: grip, bottom: graphic };
+  return { side, top: grip, bottom: graphic, floor: (x) => along(deck, x) + 1.3 };
 }
 
 /** A brick, with an arrow painted on its side to say which way is up, and three holes on top. */
-function brick(t: Thing): Faces {
+function brick(t: Thing): Paint {
   const { length: L, height: H, width: W } = t;
   const clay = (x: number, y: number, base: string, seed: number) => {
     const n = noise(x, y, seed);
@@ -308,7 +334,7 @@ function brick(t: Thing): Faces {
 }
 
 /** Any object without its own paint: a plain box. */
-function box(t: Thing): Faces {
+function box(t: Thing): Paint {
   return {
     side: shade(t.length, t.height, () => '#c0c0d0'),
     top: shade(t.length, t.width, () => '#e0e0f0'),
@@ -316,10 +342,51 @@ function box(t: Thing): Faces {
   };
 }
 
-const PAINTS: Record<string, (t: Thing) => Faces> = { roadster, skateboard, brick };
+const PAINTS: Record<string, (t: Thing) => Paint> = { roadster, skateboard, brick };
 
 export function facesOf(t: Thing): Faces {
-  return (PAINTS[t.id] ?? box)(t);
+  const paint = (PAINTS[t.id] ?? box)(t);
+  return { ...paint, flipped: { side: flip(paint.side), top: flip(paint.top), bottom: flip(paint.bottom) }, cols: columns(t, paint) };
+}
+
+function flip(img: HTMLCanvasElement): HTMLCanvasElement {
+  const c = document.createElement('canvas');
+  c.width = img.width;
+  c.height = img.height;
+  const ctx = c.getContext('2d')!;
+  ctx.translate(0, img.height);
+  ctx.scale(1, -1);
+  ctx.drawImage(img, 0, 0);
+  return c;
+}
+
+/** The first and last rows a column of an image has anything in, or null for an empty column. */
+function extent(data: Uint8ClampedArray, w: number, h: number, x: number): [number, number] | null {
+  let first = -1;
+  let last = -1;
+  for (let y = 0; y < h; y++) {
+    if (data[(y * w + x) * 4 + 3]! === 0) continue;
+    if (first < 0) first = y;
+    last = y;
+  }
+  return first < 0 ? null : [first, last];
+}
+
+function columns(t: Thing, paint: Paint): Columns {
+  const { length: L, height: H, width: W } = t;
+  const side = paint.side.getContext('2d')!.getImageData(0, 0, L, H).data;
+  const top = paint.top.getContext('2d')!.getImageData(0, 0, L, W).data;
+  const cols: Columns = { roof: new Float32Array(L), base: new Float32Array(L), floor: new Float32Array(L), far: new Float32Array(L), near: new Float32Array(L) };
+  for (let x = 0; x < L; x++) {
+    const s = extent(side, L, H, x);
+    const [roof, base] = s ? [s[0], s[1] + 1] : [H / 2, H / 2];
+    cols.roof[x] = roof;
+    cols.base[x] = base;
+    cols.floor[x] = paint.floor ? Math.max(roof, Math.min(base, paint.floor(x + 0.5))) : base;
+    const a = extent(top, L, W, x);
+    [cols.far[x], cols.near[x]] = a ? [a[0], a[1] + 1] : [W / 2, W / 2];
+  }
+  return cols;
 }
 
 /** The sneaker that kicks, toe to the right. */

@@ -206,8 +206,9 @@ export class Scene {
       return [{ thing, x: CX, angle: lerp(f.prevAngle, f.angle, a), lift: (lerp(f.prevHeight, f.height, a) / 1000) * SCALE }];
     }
     if (game.phase === 'landed' && l) {
-      // A clean landing settles onto its wheels at once; a miss topples over.
-      const k = smooth(progress(LAND_TICKS * (l.clean ? 0.25 : 0.6)));
+      // A clean landing rocks back onto its wheels, slower the further off it came down; a miss topples over.
+      const settle = l.clean ? 0.15 + (0.6 * Math.abs(l.angle - l.rest)) / QUARTER : 0.6;
+      const k = smooth(progress(LAND_TICKS * Math.min(0.75, settle)));
       return [{ thing, x: CX, angle: lerp(l.angle, l.rest, k), lift: 0 }];
     }
     if (game.phase === 'reset' && l) {
@@ -237,9 +238,12 @@ export class Scene {
   }
 
   /**
-   * An object turned about its long axis: the cross-section's four corners
-   * projected on the screen, and the two faces between them that face us,
-   * each squashed to fit.
+   * An object turned about its long axis, a column at a time along its
+   * length. Each column is its own cross-section, as tall as the object is
+   * there and as wide: turned, its corners land on screen rows, and the faces
+   * that face us are drawn between them, squashed to fit. So a roof sits on
+   * the roof wherever it is, low over a bonnet and high over the cabin, and
+   * the underside sits at the floor, with the wheels below it.
    */
   private drawThing(p: Pose): void {
     const { thing, x, angle } = p;
@@ -249,30 +253,34 @@ export class Scene {
     const s = Math.sin(angle * RAD);
     const mid = this.middle(p);
     const [h, w] = [thing.height / 2, thing.width / 2];
-    // Screen rows of the corners: near and far, top and bottom, as the object stands.
+    // The screen row of a point of the cross-section: y up from the middle, z toward us.
     const row = (y: number, z: number) => Math.round(mid - (y * c - z * s));
-    const nearTop = row(h, w);
-    const nearBottom = row(-h, w);
-    const farTop = row(h, -w);
-    const farBottom = row(-h, -w);
     const left = Math.round(x - thing.length / 2);
-    if (c > 0) this.face(f.side, left, nearTop, nearBottom);
-    if (c < 0) this.face(f.side, left, farTop, farBottom);
-    if (s > 0) this.face(f.top, left, farTop, nearTop);
-    if (s < 0) this.face(f.bottom, left, nearBottom, farBottom);
+    const k = f.cols;
+    for (let i = 0; i < thing.length; i++) {
+      const roof = h - k.roof[i]!;
+      // Roof or underside first: the side goes over it, as wheels below a floor do.
+      if (s > 0) this.slice(f.top, f.flipped.top, i, 0, thing.width, left + i, row(roof, -w), row(roof, w));
+      else if (s < 0) {
+        const floor = h - k.floor[i]!;
+        this.slice(f.bottom, f.flipped.bottom, i, 0, thing.width, left + i, row(floor, w), row(floor, -w));
+      }
+      if (c === 0 || k.base[i]! <= k.roof[i]!) continue;
+      const z = c > 0 ? k.near[i]! - w : k.far[i]! - w;
+      this.slice(f.side, f.flipped.side, i, k.roof[i]!, k.base[i]!, left + i, row(roof, z), row(h - k.base[i]!, z));
+    }
   }
 
-  /** A face from screen row `from`, its first row, to row `to`: upside down if `to` is above `from`. */
-  private face(img: HTMLCanvasElement, left: number, from: number, to: number): void {
-    const h = to - from;
-    if (h > 0) this.ctx.drawImage(img, left, from, img.width, h);
-    else if (h < 0) {
-      this.ctx.save();
-      this.ctx.translate(left, from);
-      this.ctx.scale(1, -1);
-      this.ctx.drawImage(img, 0, 0, img.width, -h);
-      this.ctx.restore();
-    }
+  /**
+   * Rows `from` to `to` of column `col` of a face, drawn from screen row `a`
+   * (where its first row goes) to row `b`: upside down, from the flipped copy,
+   * when `b` is above `a`.
+   */
+  private slice(img: HTMLCanvasElement, flipped: HTMLCanvasElement, col: number, from: number, to: number, dx: number, a: number, b: number): void {
+    const span = to - from;
+    if (span <= 0 || a === b) return;
+    if (b > a) this.ctx.drawImage(img, col, from, 1, span, dx, a, 1, b - a);
+    else this.ctx.drawImage(flipped, col, img.height - to, 1, span, dx, b, 1, a - b);
   }
 
   /** A shadow on the street, smaller and fainter the higher the object. */
