@@ -3,7 +3,7 @@
  * in thousandths of a degree; heights in thousandths of a pixel. A change
  * here changes what a run scores, so bump RULES_VERSION with it.
  */
-export const RULES_VERSION = 1;
+export const RULES_VERSION = 2;
 export const TICK_HZ = 60;
 
 /** A full turn, in thousandths of a degree. */
@@ -29,9 +29,14 @@ export const AIR_PER = 36;
 export const GRAVITY = 128;
 
 // Landing
-/** How far from a full turn still lands clean, either way: wide at first, narrowing a step a level to a floor. */
-export const WINDOW_BASE = 45_000;
-export const WINDOW_STEP = 2_000;
+/**
+ * How far from a full turn still lands clean, either way. Very wide at
+ * first, so the first objects forgive a flick nearly a quarter turn off;
+ * then each level keeps WINDOW_KEEP percent of what's left above the floor:
+ * quick to narrow early, slower later, never below WINDOW_MIN.
+ */
+export const WINDOW_BASE = 80_000;
+export const WINDOW_KEEP = 88;
 export const WINDOW_MIN = 12_000;
 /** The first level the window narrows from. Level 1's thrusters land anything. */
 export const WINDOW_FROM_LEVEL = 2;

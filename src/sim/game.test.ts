@@ -55,22 +55,27 @@ describe('the flip', () => {
 
   it('lands clean right up to the window and not past it', () => {
     const board = thing('skateboard');
-    // At level 2 the window is 45 degrees, 62.5 of intensity either way.
-    expect(flip(board, 562).landing.verdict).toBe('clean');
-    expect(flip(board, 563).landing.verdict).toBe('over');
-    expect(flip(board, 438).landing.verdict).toBe('clean');
-    expect(flip(board, 437).landing.verdict).toBe('under');
+    // At level 2 the window is 80 degrees, 111 of intensity either way: 389 to 611 for 500.
+    expect(flip(board, 611).landing.verdict).toBe('clean');
+    expect(flip(board, 612).landing.verdict).toBe('over');
+    expect(flip(board, 389).landing.verdict).toBe('clean');
+    expect(flip(board, 388).landing.verdict).toBe('under');
     // A third of the window is PERFECT.
-    expect(flip(board, 520).landing.verdict).toBe('perfect');
-    expect(flip(board, 521).landing.verdict).toBe('clean');
+    expect(flip(board, 537).landing.verdict).toBe('perfect');
+    expect(flip(board, 538).landing.verdict).toBe('clean');
   });
 
-  it('narrows the window a step a level, to a floor', () => {
-    expect(windowAt(1)).toBe(45_000);
-    expect(windowAt(2)).toBe(45_000);
-    expect(windowAt(3)).toBe(43_000);
-    expect(windowAt(18)).toBe(13_000);
-    expect(windowAt(19)).toBe(R.WINDOW_MIN);
+  it('narrows the window quickly at first, then slowly, toward a floor', () => {
+    expect(windowAt(1)).toBe(80_000);
+    expect(windowAt(2)).toBe(80_000);
+    expect(windowAt(3)).toBe(71_840);
+    expect(windowAt(4)).toBe(64_659);
+    const widths = Array.from({ length: 60 }, (_, i) => windowAt(i + 2));
+    for (let i = 1; i < widths.length; i++) expect(widths[i]).toBeLessThanOrEqual(widths[i - 1]!);
+    // Each level takes less off than the one before.
+    for (let i = 2; i < 20; i++) expect(widths[i - 1]! - widths[i]!).toBeLessThanOrEqual(widths[i - 2]! - widths[i - 1]!);
+    expect(windowAt(10)).toBeGreaterThan(35_000);
+    expect(windowAt(20)).toBeLessThan(20_000);
     expect(windowAt(500)).toBe(R.WINDOW_MIN);
   });
 
@@ -135,10 +140,10 @@ describe('the flip', () => {
     // Half a turn: on its roof.
     expect(flip(board, 250).landing.rest).toBe(2 * R.QUARTER);
     // Nearly a full turn but outside the narrow window: tips over the way it leans.
-    expect(flip(board, 525, 19).landing.rest).toBe(5 * R.QUARTER);
-    expect(flip(board, 475, 19).landing.rest).toBe(3 * R.QUARTER);
+    expect(flip(board, 525, 500).landing.rest).toBe(5 * R.QUARTER);
+    expect(flip(board, 475, 500).landing.rest).toBe(3 * R.QUARTER);
     // Two turns where one was needed is OVER, and it tips off its wheels.
-    const two = flip(board, R.INTENSITY_MAX, 19).landing;
+    const two = flip(board, R.INTENSITY_MAX, 500).landing;
     expect(two.verdict).toBe('over');
     expect(two.rest % R.TURN).not.toBe(0);
     // Clean lands on the wheels exactly.
@@ -280,14 +285,14 @@ describe('the input log', () => {
 
   it('matches the recorded golden run for this version of the rules', () => {
     const { game, log } = scripted('golden');
-    expect(R.RULES_VERSION).toBe(1);
+    expect(R.RULES_VERSION).toBe(2);
     expect({ score: game.score, landed: game.index, tick: game.tick, hash: game.hash(), bytes: log.encode().length }).toMatchInlineSnapshot(`
       {
-        "bytes": 58,
-        "hash": 867789132,
-        "landed": 7,
-        "score": 5200,
-        "tick": 1319,
+        "bytes": 82,
+        "hash": 2403610749,
+        "landed": 11,
+        "score": 35600,
+        "tick": 1875,
       }
     `);
   });

@@ -54,9 +54,11 @@ export const sweetSpot = (thing: Thing) => Math.round(goal(thing) / gain(thing))
 
 export const airtime = (intensity: number) => R.AIR_BASE + Math.floor((R.AIR_PER * intensity) / 1000);
 
-/** How far off a landing may be and still be clean: wide at first, narrowing level by level to a floor. */
+/** How far off a landing may be and still be clean: wide at first, narrowing level by level toward a floor. */
 export function windowAt(level: number): number {
-  return Math.max(R.WINDOW_MIN, R.WINDOW_BASE - R.WINDOW_STEP * Math.max(0, level - R.WINDOW_FROM_LEVEL));
+  let above = R.WINDOW_BASE - R.WINDOW_MIN;
+  for (let l = R.WINDOW_FROM_LEVEL; l < level && above > 0; l++) above = Math.floor((above * R.WINDOW_KEEP) / 100);
+  return R.WINDOW_MIN + above;
 }
 
 /** Rotation after `t` ticks from the flick alone. */
