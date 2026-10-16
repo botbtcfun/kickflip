@@ -14,14 +14,30 @@ const note = (semis: number) => F4 * 2 ** (semis / 12);
  * is called from those; until then, and while muted, nothing plays.
  */
 export class Sound {
-  private ctx: AudioContext | null = null;
+  private ctx: BaseAudioContext | null = null;
   private master: GainNode | null = null;
   private noiseBuf: AudioBuffer | null = null;
   private hiss: GainNode | null = null;
   private muted = false;
+  /** Where sounds go on the context's clock, when set: for rendering a recording's soundtrack offline. */
+  private base: number | null = null;
 
   constructor(muted: boolean) {
     this.muted = muted;
+  }
+
+  /** Sounds played into a context of one's own, at the times at() sets: an offline one, for a clip's soundtrack. */
+  static into(ctx: BaseAudioContext, out: AudioNode = ctx.destination): Sound {
+    const sound = new Sound(false);
+    sound.build(ctx, out);
+    sound.base = 0;
+    return sound;
+  }
+
+  /** Plays what comes next at `time` seconds on the context's clock. */
+  at(time: number): this {
+    this.base = time;
+    return this;
   }
 
   unlock(): void {
@@ -29,22 +45,26 @@ export class Sound {
       const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AC) return;
       const ctx = new AC();
-      const comp = ctx.createDynamicsCompressor();
-      comp.connect(ctx.destination);
-      this.master = ctx.createGain();
-      this.master.gain.value = this.muted ? 0 : VOLUME;
-      this.master.connect(comp);
-      this.noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
-      const d = this.noiseBuf.getChannelData(0);
-      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      this.ctx = ctx;
+      this.build(ctx, ctx.destination);
     }
-    if (this.ctx.state === 'suspended') void this.ctx.resume();
+    if (this.ctx instanceof AudioContext && this.ctx.state === 'suspended') void this.ctx.resume();
+  }
+
+  private build(ctx: BaseAudioContext, out: AudioNode): void {
+    const comp = ctx.createDynamicsCompressor();
+    comp.connect(out);
+    this.master = ctx.createGain();
+    this.master.gain.value = this.muted ? 0 : VOLUME;
+    this.master.connect(comp);
+    this.noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+    const d = this.noiseBuf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    this.ctx = ctx;
   }
 
   setMuted(muted: boolean): void {
     this.muted = muted;
-    if (this.ctx && this.master) this.master.gain.setTargetAtTime(muted ? 0 : VOLUME, this.ctx.currentTime, 0.02);
+    if (this.ctx && this.master) this.master.gain.setTargetAtTime(muted ? 0 : VOLUME, this.now(this.ctx), 0.02);
   }
 
   /** The flick: a rush of air, longer and brighter the harder it was. */
@@ -75,9 +95,9 @@ export class Sound {
       this.hiss = ctx.createGain();
       this.hiss.gain.value = 0;
       src.connect(f).connect(this.hiss).connect(this.master);
-      src.start();
+      src.start(this.now(ctx));
     }
-    this.hiss.gain.setTargetAtTime(0.12 * Math.max(0, Math.min(1, level)), ctx.currentTime, 0.04);
+    this.hiss.gain.setTargetAtTime(0.12 * Math.max(0, Math.min(1, level)), this.now(ctx), 0.04);
   }
 
   /** Down on its wheels: a snap and a chord, higher the longer the streak; a bell for PERFECT, a flourish for a trick. */
@@ -122,14 +142,20 @@ export class Sound {
     this.noise(0, 0.35, 0.05, 'lowpass', 500, 900);
   }
 
-  private live(): AudioContext | null {
-    return this.ctx && this.master && !this.muted && this.ctx.state === 'running' ? this.ctx : null;
+  private live(): BaseAudioContext | null {
+    if (!this.ctx || !this.master || this.muted) return null;
+    // A live context plays only once it runs; an offline one plays whenever it's told to.
+    return this.base !== null || this.ctx.state === 'running' ? this.ctx : null;
+  }
+
+  private now(ctx: BaseAudioContext): number {
+    return this.base ?? ctx.currentTime;
   }
 
   private tone(at: number, dur: number, type: OscillatorType, vol: number, freq: number, to?: number, lowpass?: number): void {
     const ctx = this.live();
     if (!ctx) return;
-    const t = ctx.currentTime + at;
+    const t = this.now(ctx) + at;
     const osc = ctx.createOscillator();
     osc.type = type;
     osc.frequency.setValueAtTime(freq, t);
@@ -153,7 +179,7 @@ export class Sound {
   private noise(at: number, dur: number, vol: number, type: BiquadFilterType, freq: number, to?: number, q = 1): void {
     const ctx = this.live();
     if (!ctx || !this.noiseBuf) return;
-    const t = ctx.currentTime + at;
+    const t = this.now(ctx) + at;
     const src = ctx.createBufferSource();
     src.buffer = this.noiseBuf;
     src.loop = true;
