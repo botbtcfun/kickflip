@@ -2,7 +2,9 @@ import type { Landing } from '../sim/flip';
 import type { Game, GameEvent } from '../sim/game';
 import type { Thing } from '../sim/objects';
 import { LAND_TICKS, PERFECT_DIV, QUARTER, RESET_TICKS, ROLL_TICKS, TICK_HZ, TURN } from '../sim/rules';
-import { type Faces, NOZZLES, facesOf, mix, noise, sneaker } from './faces';
+import { type Faces, facesOf } from './faces';
+import { mix, noise } from './paint';
+import { NOZZLES, sneaker } from './things';
 
 /** The stage's width in pixels as drawn; its height fits the screen, at least MIN_HEIGHT. */
 export const WIDTH = 288;
@@ -23,7 +25,7 @@ const METER_OUT = 57;
 /** The charge bar, beside the object while a key is held. */
 const BAR_X = CX + 64;
 const BAR_W = 8;
-const BAR_H = 96;
+const BAR_H = 120;
 
 const SKY = ['#1b1440', '#24174b', '#2f1a55', '#3d1d5c', '#4e2061', '#622464', '#7a2a64', '#943262', '#b03d5d', '#cc4b56', '#e75d4f', '#ff8a5b'];
 /** A 4x4 ordered dither, for the sky's bands to blend in pixels. */
@@ -239,11 +241,13 @@ export class Scene {
 
   /**
    * An object turned about its long axis, a column at a time along its
-   * length. Each column is its own cross-section, as tall as the object is
-   * there and as wide: turned, its corners land on screen rows, and the faces
-   * that face us are drawn between them, squashed to fit. So a roof sits on
-   * the roof wherever it is, low over a bonnet and high over the cabin, and
-   * the underside sits at the floor, with the wheels below it.
+   * length. Each column is a stack of slabs, each as tall as some rows of the
+   * object and as wide as the object is there. Turned, a slab's corners land
+   * on screen rows, and the faces of it that face us are drawn between them,
+   * squashed to fit: its side, and its top or bottom, from the roof and
+   * underside faces. The slabs go far to near, so nearer ones cover what's
+   * behind them: a head turns as a head on a body, a roof sits on the cabin,
+   * and wheels and legs hang below the floor.
    */
   private drawThing(p: Pose): void {
     const { thing, x, angle } = p;
@@ -252,22 +256,37 @@ export class Scene {
     const c = Math.cos(angle * RAD);
     const s = Math.sin(angle * RAD);
     const mid = this.middle(p);
-    const [h, w] = [thing.height / 2, thing.width / 2];
+    const [h, w, W] = [thing.height / 2, thing.width / 2, thing.width];
     // The screen row of a point of the cross-section: y up from the middle, z toward us.
     const row = (y: number, z: number) => Math.round(mid - (y * c - z * s));
     const left = Math.round(x - thing.length / 2);
-    const k = f.cols;
+    const edge = (far: number, near: number) => (c > 0 ? near : far) - w;
     for (let i = 0; i < thing.length; i++) {
-      const roof = h - k.roof[i]!;
-      // Roof or underside first: the side goes over it, as wheels below a floor do.
-      if (s > 0) this.slice(f.top, f.flipped.top, i, 0, thing.width, left + i, row(roof, -w), row(roof, w));
-      else if (s < 0) {
-        const floor = h - k.floor[i]!;
-        this.slice(f.bottom, f.flipped.bottom, i, 0, thing.width, left + i, row(floor, w), row(floor, -w));
+      const col = f.cols[i]!;
+      const n = col.slabs.length;
+      for (let j = 0; j < n; j++) {
+        // Seen from above, the lowest slab is furthest; from below, the highest.
+        const sl = col.slabs[s >= 0 ? n - 1 - j : j]!;
+        const [yt, yb] = [h - sl.r0, h - sl.r1];
+        if (s > 0) this.slice(f.top, f.flipped.top, i, sl.far, sl.near, left + i, row(yt, sl.far - w), row(yt, sl.near - w));
+        else if (s < 0) this.slice(f.bottom, f.flipped.bottom, i, W - sl.near, W - sl.far, left + i, row(yb, sl.near - w), row(yb, sl.far - w));
+        if (c !== 0) {
+          const z = edge(sl.far, sl.near);
+          this.slice(f.side, f.flipped.side, i, sl.r0, sl.r1, left + i, row(yt, z), row(yb, z));
+        }
       }
-      if (c === 0 || k.base[i]! <= k.roof[i]!) continue;
-      const z = c > 0 ? k.near[i]! - w : k.far[i]! - w;
-      this.slice(f.side, f.flipped.side, i, k.roof[i]!, k.base[i]!, left + i, row(roof, z), row(h - k.base[i]!, z));
+      if (c === 0) continue;
+      // What sticks up above the roof or hangs below the floor, on the side toward us.
+      const first = col.slabs[0];
+      const last = col.slabs[n - 1];
+      if (col.roof > col.top) {
+        const z = first ? edge(first.far, first.near) : edge(col.far, col.near);
+        this.slice(f.side, f.flipped.side, i, col.top, col.roof, left + i, row(h - col.top, z), row(h - col.roof, z));
+      }
+      if (col.base > col.floor) {
+        const z = last ? edge(last.far, last.near) : edge(col.far, col.near);
+        this.slice(f.side, f.flipped.side, i, col.floor, col.base, left + i, row(h - col.floor, z), row(h - col.base, z));
+      }
     }
   }
 
@@ -311,7 +330,7 @@ export class Scene {
 
   /**
    * How long a key has been held: a bar beside the object filling up, with a
-   * tick at each quarter. It shows how hard the flick will be, not how hard it
+   * tick at each fifth. It shows how hard the flick will be, not how hard it
    * should be: finding that is the game.
    */
   private chargeBar(charge: number): void {
@@ -332,7 +351,8 @@ export class Scene {
       ctx.fillRect(BAR_X, bottom - full, 2, full);
     }
     ctx.fillStyle = '#14121c';
-    for (let q = 1; q < 4; q++) ctx.fillRect(BAR_X, bottom - Math.round((q * BAR_H) / 4), BAR_W, 1);
+    // Ticks at fifths: no sweet spot sits on one.
+    for (let q = 1; q < 5; q++) ctx.fillRect(BAR_X, bottom - Math.round((q * BAR_H) / 5), BAR_W, 1);
   }
 
   /**

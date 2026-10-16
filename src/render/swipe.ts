@@ -1,13 +1,13 @@
 import { INTENSITY_MAX, INTENSITY_MIN } from '../sim/rules';
 
-/** A swipe this fast, in stage heights per second, is the strongest flick. */
-const FULL_SPEED = 6;
+/** A swipe this fast, in stage heights per second, is the strongest flick: 2.5 is a standard single flip. */
+const FULL_SPEED = (10 * INTENSITY_MAX) / 2000;
 /** A swipe's speed is read over its last this many ms: the flick, not the wind-up. */
 const SPEED_MS = 80;
 /** A swipe shorter than this, upward, is a tap. */
 const MIN_TRAVEL_PX = 24;
-/** Holding a key this long is the strongest flick. */
-const FULL_HOLD_MS = 1000;
+/** Holding a key this long is the strongest flick: half a second is a standard single flip. */
+const FULL_HOLD_MS = INTENSITY_MAX;
 const CHARGE_KEYS = new Set(['ArrowUp', 'KeyW', 'Space']);
 /** Samples older than this are no use to the speed. */
 const KEEP_MS = 400;

@@ -269,6 +269,11 @@ body.touch .loading {
   color: var(--good);
 }
 
+.verdict.trick {
+  color: var(--sodium);
+  text-shadow: 2px 2px 0 var(--sun);
+}
+
 .verdict.under,
 .verdict.over {
   color: var(--bad);

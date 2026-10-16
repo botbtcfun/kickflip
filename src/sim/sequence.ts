@@ -1,39 +1,46 @@
 import { OBJECTS } from './objects';
 import { Rng } from './rng';
+import { TIER_LEVELS } from './rules';
 
 /** Every run starts with these, in order: each teaches one thing. */
-export const OPENERS = ['roadster', 'skateboard', 'brick'];
-/** What comes after, drawn by the seed. The Roadster only opens. */
-export const POOL = Object.keys(OBJECTS).filter((id) => id !== 'roadster');
+export const OPENERS = Object.values(OBJECTS)
+  .filter((t) => t.tier === 0)
+  .map((t) => t.id);
+/** What comes after, drawn by the seed as each tier opens. */
+export const POOL = Object.values(OBJECTS).filter((t) => t.tier > 0);
 
 /**
- * The objects of a run, in order: the openers, then the pool shuffled again
- * each time it runs out, as a bag. Nothing comes twice in a row. The order
- * depends on the seed alone, never on play, so everyone gets the same
- * objects on the same day.
+ * The objects of a run, in order: the openers, then draws from the pool.
+ * Each draw takes an object not yet drawn from the tiers open at that level;
+ * only when all of those have come does it start over. So nothing comes
+ * twice in a row, and a run that gets past the openers meets every object
+ * once before any comes back. The order depends on the seed alone, never on
+ * play, so everyone gets the same objects on the same day.
  */
 export class Sequence {
   private readonly rng: Rng;
   private readonly list: string[] = [...OPENERS];
+  private readonly drawn = new Set<string>();
 
   constructor(seed: string) {
     this.rng = new Rng(`objects:${seed}`);
   }
 
   at(n: number): string {
-    while (this.list.length <= n) this.refill();
+    while (this.list.length <= n) this.list.push(this.draw(this.list.length + 1));
     return this.list[n]!;
   }
 
-  private refill(): void {
-    const bag = [...POOL];
-    // Fisher-Yates.
-    for (let i = bag.length - 1; i > 0; i--) {
-      const j = this.rng.below(i + 1);
-      [bag[i], bag[j]] = [bag[j]!, bag[i]!];
+  private draw(level: number): string {
+    const open = POOL.filter((t) => TIER_LEVELS[t.tier]! <= level).map((t) => t.id);
+    let fresh = open.filter((id) => !this.drawn.has(id));
+    if (!fresh.length) {
+      this.drawn.clear();
+      const last = this.list[this.list.length - 1];
+      fresh = open.filter((id) => id !== last);
     }
-    // Across the seam between two bags, swap so nothing repeats.
-    if (bag.length > 1 && bag[0] === this.list[this.list.length - 1]) [bag[0], bag[1]] = [bag[1]!, bag[0]!];
-    this.list.push(...bag);
+    const id = fresh[this.rng.below(fresh.length)]!;
+    this.drawn.add(id);
+    return id;
   }
 }

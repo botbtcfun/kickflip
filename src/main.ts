@@ -54,8 +54,10 @@ class Run implements Session {
     for (const e of events) {
       if (e.type === 'land') {
         const l = e.landing;
-        // The Roadster lands anything: say so when the flick alone would have missed.
-        const saved = this.game.thing.quirk === 'thrusters' && Math.abs(l.error) > l.window ? 'THRUSTERS SAVED IT' : '';
+        // The Roadster and the cat land anything: say so when the flick alone would have missed.
+        const quirk = this.game.thing.quirk;
+        const missed = Math.abs(l.error) > l.window;
+        const saved = !missed ? '' : quirk === 'thrusters' ? 'THRUSTERS SAVED IT' : quirk === 'feet' ? 'ON ITS FEET, AS EVER' : '';
         hud.verdict(l, (scene.groundY - 128) * scene.zoom, saved);
       } else if (e.type === 'over') this.gameOver();
     }

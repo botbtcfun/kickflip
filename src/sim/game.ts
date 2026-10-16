@@ -119,7 +119,8 @@ export class Game {
       this.streak++;
       this.best = Math.max(this.best, this.streak);
       if (landing.verdict === 'perfect') this.perfects++;
-      landing.points = R.OBJECT_POINTS * this.level * (landing.verdict === 'perfect' ? R.PERFECT_TIMES : 1) * Math.min(this.streak, R.MAX_STREAK);
+      // A double pays twice, a triple three times, on top of the rest.
+      landing.points = R.OBJECT_POINTS * this.level * (landing.verdict === 'perfect' ? R.PERFECT_TIMES : 1) * Math.min(this.streak, R.MAX_STREAK) * (1 + landing.extra);
       this.score += landing.points;
     } else {
       this.streak = 0;

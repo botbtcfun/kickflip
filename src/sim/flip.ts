@@ -9,13 +9,15 @@ export interface Flight {
   t: number;
   /** The rotation the flick gave, over the whole flight. */
   spin: number;
+  /** The whole turns nearest that spin, at least the object's own: where thrusters steer it. */
+  aim: number;
   /** Rotation so far, and a tick ago, for drawing in between. */
   angle: number;
   prevAngle: number;
   /** Height above where it rests, now and a tick ago, in thousandths of a pixel. */
   height: number;
   prevHeight: number;
-  /** The thrusters' push this tick, signed: 0 when they're idle, or the object has none. */
+  /** The thrusters' or the twist's push this tick, signed: 0 when idle, or the object rights itself not at all. */
   thrust: number;
 }
 
@@ -25,12 +27,16 @@ export type Verdict = 'perfect' | 'clean' | 'under' | 'over';
 export interface Landing {
   verdict: Verdict;
   clean: boolean;
+  /** Whole turns it landed after: its own, or more for a double or a triple. */
+  turns: number;
+  /** Turns beyond its own, landed clean by the flick itself: each one multiplies the points. */
+  extra: number;
   /**
    * How far the flick itself was from the turns it needed, what the meter
-   * shows. With thrusters, how far it would have been without them.
+   * shows. With thrusters or a cat's twist, how far it would have been without them.
    */
   error: number;
-  /** How far off still landed clean, either way, at this level. */
+  /** How far off still landed clean, either way, for this object at this level. */
   window: number;
   /** The angle it touched down at. */
   angle: number;
@@ -52,7 +58,22 @@ export const goal = (thing: Thing) => R.TURN * thing.turns;
 /** The flick that spins it exactly as far as it needs, for tests and tuning. */
 export const sweetSpot = (thing: Thing) => Math.round(goal(thing) / gain(thing));
 
-export const airtime = (intensity: number) => R.AIR_BASE + Math.floor((R.AIR_PER * intensity) / 1000);
+export const airtime = (intensity: number) =>
+  R.AIR_BASE + Math.floor((R.AIR_PER * Math.min(intensity, R.AIR_KNEE)) / 1000) + Math.floor((R.AIR_PER_HIGH * Math.max(0, intensity - R.AIR_KNEE)) / 1000);
+
+/** The whole turns nearest a rotation, but never fewer than `thing` needs. */
+const turnsNear = (thing: Thing, angle: number) => Math.max(thing.turns, Math.round(angle / R.TURN));
+
+/** How far off a landing on `thing` may be at `level`: the level's window, less for narrow and slippery things. */
+export function windowFor(thing: Thing, level: number): number {
+  const w = windowAt(level);
+  if (thing.quirk === 'narrow') return Math.floor((w * R.NARROW_PERCENT) / 100);
+  if (thing.quirk === 'slippery') return Math.floor((w * R.SLIPPERY_PERCENT) / 100);
+  return w;
+}
+
+/** Whether something rights it in the air whatever the flick: thrusters, or a cat's twist. */
+export const rights = (thing: Thing) => thing.quirk === 'thrusters' || thing.quirk === 'feet';
 
 /** How far off a landing may be and still be clean: wide at first, narrowing level by level toward a floor. */
 export function windowAt(level: number): number {
@@ -64,14 +85,15 @@ export function windowAt(level: number): number {
 /** Rotation after `t` ticks from the flick alone. */
 const spunAt = (f: Flight, t: number) => Math.floor((f.spin * t) / f.air);
 
-/** What thrusters have turned it by after `t` ticks: they steer it, harder as it comes down, onto the turns it needs. */
-const steerAt = (f: Flight, thing: Thing, t: number) => (thing.quirk === 'thrusters' ? Math.floor(((goal(thing) - f.spin) * t * t) / (f.air * f.air)) : 0);
+/** What thrusters, or a cat's twist, have turned it by after `t` ticks: harder as it comes down, onto the whole turns nearest the flick. */
+const steerAt = (f: Flight, thing: Thing, t: number) => (rights(thing) ? Math.floor(((f.aim * R.TURN - f.spin) * t * t) / (f.air * f.air)) : 0);
 
 /** Height after `t` ticks: up and back down in `air` ticks. */
 const heightAt = (f: Flight, t: number) => (R.GRAVITY * t * (f.air - t)) / 2;
 
 export function launch(thing: Thing, intensity: number): Flight {
-  return { intensity, air: airtime(intensity), t: 0, spin: Math.floor(gain(thing) * intensity), angle: 0, prevAngle: 0, height: 0, prevHeight: 0, thrust: 0 };
+  const spin = Math.floor(gain(thing) * intensity);
+  return { intensity, air: airtime(intensity), t: 0, spin, aim: turnsNear(thing, spin), angle: 0, prevAngle: 0, height: 0, prevHeight: 0, thrust: 0 };
 }
 
 /** One tick of a flight. */
@@ -85,14 +107,21 @@ export function fly(f: Flight, thing: Thing): void {
   f.height = heightAt(f, f.t);
 }
 
-/** How a flight lands, once it's down. Points are the game's to add. */
+/**
+ * How a flight lands, once it's down. Any whole number of turns at least the
+ * object's own lands it on its wheels, within the window: one more than it
+ * needs is a double, two more a triple. Points are the game's to add.
+ */
 export function judge(thing: Thing, level: number, f: Flight): Landing {
-  const need = goal(thing);
-  const window = windowAt(level);
+  const turns = turnsNear(thing, f.angle);
+  const need = turns * R.TURN;
+  const window = windowFor(thing, level);
   const off = f.angle - need;
-  const error = f.spin - need;
+  // What the flick alone would have done: the meter shows it, and only a flick that lands by itself earns a trick.
+  const error = f.spin - f.aim * R.TURN;
   const clean = Math.abs(off) <= window;
   const perfect = clean && Math.abs(error) * R.PERFECT_DIV <= window;
+  const extra = clean && Math.abs(error) <= window ? turns - thing.turns : 0;
   let rest = need;
   if (!clean) {
     // It comes down on the nearest side; if that's its wheels, it was too far off to stay on them, and tips over the way it leans.
@@ -103,5 +132,5 @@ export function judge(thing: Thing, level: number, f: Flight): Landing {
     }
     rest = q * R.QUARTER;
   }
-  return { verdict: perfect ? 'perfect' : clean ? 'clean' : off < 0 ? 'under' : 'over', clean, error, window, angle: f.angle, rest, points: 0 };
+  return { verdict: perfect ? 'perfect' : clean ? 'clean' : off < 0 ? 'under' : 'over', clean, turns, extra, error, window, angle: f.angle, rest, points: 0 };
 }
