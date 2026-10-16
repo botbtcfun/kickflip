@@ -1,0 +1,75 @@
+# Kickflip
+
+Flick it, flip it, land it on its wheels. A pixel-art game of one swipe:
+something sits on the street, you flick it up, and it kickflips. Flick with
+the right strength and it lands on its wheels, or its feet, and the next one
+rolls in. Too soft or too hard and it lands on its side or its roof, and a
+life goes.
+
+There are 21 things to flip, and most were never meant to be: a roadster
+with thrusters under its floor, a skateboard, a pizza box, a brick, a
+penguin, a giraffe, a fridge, a cat. Each run starts with the same six, then
+the day's draw brings the rest, everyday things first, then the heavy ones,
+then the odd ones. A run that gets to 21 meets every one once.
+
+[Play it](https://kickflip.botbtc.fun).
+
+## Play
+
+| | |
+|---|---|
+| Phone | Swipe up anywhere. The faster the swipe, the more it spins |
+| Mouse | Drag up and let go, the same way |
+| Keyboard | Hold ↑ or Space and let go: the longer, the harder. A bar shows how far it's charged |
+| P or Esc | Pause |
+| M | Sound on or off |
+
+- **The window.** A flip lands clean within some degrees of a whole turn.
+  The first objects forgive a flick a fifth off; every object after that
+  forgives a little less. After each landing a meter shows where the flick
+  fell: PERFECT in the bright middle, CLEAN in the green.
+- **Weight.** Light things spin easily and are easy to overdo; heavy ones
+  need a hard flick. The card under each object says which it is.
+- **Quirks.** The roadster's thrusters land anything, and the cat always
+  lands on its feet. The paper plane and the toast need two turns. The
+  banana and the bowling pin are narrow, and the ice cube and the fish are
+  slippery: they forgive less.
+- **Score.** Points grow with each object, double for a PERFECT, and
+  multiply with a streak of clean landings, up to ×8.
+- **Tricks.** Two whole turns land too, and so do three: a double kickflip
+  pays twice, a triple three times. Flicking as hard as you can never lands
+  anything.
+- **Lives.** Three, and when they're gone, a surprise.
+
+## Run it
+
+```bash
+pnpm install
+pnpm dev        # http://localhost:5174
+pnpm test       # the simulation's tests
+pnpm build      # the static site in dist/, and the whole game in one file
+```
+
+## How it's made
+
+- `src/sim`: the game itself, in plain TypeScript with no browser in it. It
+  runs on a fixed 60 Hz tick with integer arithmetic and a seeded generator,
+  so the same day and the same flicks give the same run on any device. A run
+  is its input log: the ticks that had a flick, and how hard.
+- `src/render`: drawing on a plain canvas, with no game engine. Each object
+  is three faces, side, roof and underside, painted pixel by pixel in code;
+  there are no image files. Mid-flip, each column along the object is drawn
+  as a stack of slabs, each as wide as the object is at that height, turned
+  and squashed, so a cabin turns narrower than its car and a head turns on
+  its body.
+- `src/ui`: the strip, the card, the verdicts and the screens.
+- `worker`: the Cloudflare Worker serving the game.
+
+The build also packs the game into one HTML file, `dist/kickflip.html`, with
+its script, styles and fonts inline, and the same as a `data:` URL in
+`dist/data-url.txt`, which plays pasted into an address bar.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). The fonts are Press Start 2P and VT323 (SIL Open
+Font License), through [Fontsource](https://fontsource.org).

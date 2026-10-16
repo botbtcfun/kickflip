@@ -173,9 +173,10 @@ function onefile(): Plugin {
         });
         return `<style>${css}</style>`;
       });
-      // No app manifest or home screen icon: nothing to fetch from a data: URL.
+      // No app manifest, home screen icon or link previews: nothing to fetch, nothing to share from a data: URL.
       once(/ *<link rel="manifest"[^>]*>\n/, '');
       once(/ *<link rel="apple-touch-icon"[^>]*>\n/, '');
+      html = html.replace(/ *<meta (property="og:|name="twitter:)[^>]*>\n/g, '');
       // The loader, with no script to fetch, still runs; then the game, inline.
       const tag = /<script src="\/loader\.js" data-main="(\/assets\/[^"]+\.js)" data-size="\d+"><\/script>/.exec(html);
       if (!tag) throw new Error('kickflip-onefile: no loader tag in index.html');
