@@ -62,7 +62,7 @@ interface Pose {
   lift: number;
 }
 
-/** A puff of a thruster's jet: flies off and fades. */
+/** A puff of a thruster's jet, or of dust: flies off and fades through its colours. */
 interface Puff {
   x: number;
   y: number;
@@ -70,7 +70,14 @@ interface Puff {
   vy: number;
   age: number;
   life: number;
+  colors: string[];
+  /** Pulled back down, in pixels per second per second: dust falls, jets don't. */
+  fall: number;
 }
+
+const JET_COLORS = ['#e0f6ff', '#4dc3ff', '#2a5cff'];
+const DUST_COLORS = ['#c9b8a8', '#8a7d72', '#5c5560'];
+const STILL = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const easeOut = (k: number) => 1 - (1 - k) * (1 - k);
@@ -99,6 +106,10 @@ export class Scene {
   private alpha = 0;
   private now = 0;
   private hopAt = -Infinity;
+  /** A landing's jolt: shake left and how strong, a frozen beat, and a flash. */
+  private shake = { left: 0, strength: 0 };
+  private freeze = 0;
+  private flash = 0;
 
   constructor(
     private readonly session: Session,
@@ -150,6 +161,7 @@ export class Scene {
   reset(): void {
     this.acc = 0;
     this.puffs = [];
+    this.shake.left = this.freeze = this.flash = 0;
   }
 
   /** A tap: the object hops a little, to show it felt it. */
@@ -161,17 +173,24 @@ export class Scene {
   frame(delta: number): void {
     this.now += delta;
     const s = this.session;
-    if (!s.paused) {
+    // A frozen beat after a big landing holds the game, not the clock.
+    if (this.freeze > 0) this.freeze -= delta;
+    else if (!s.paused) {
       this.acc += Math.min(delta, 100);
-      while (!s.paused && this.acc >= TICK_MS) {
+      while (!s.paused && this.freeze <= 0 && this.acc >= TICK_MS) {
         this.acc -= TICK_MS;
         s.step(this.input.sample());
         this.thrusters(s.game);
-        if (s.game.events.length) s.onEvents(s.game.events);
+        if (s.game.events.length) {
+          this.jolt(s.game);
+          s.onEvents(s.game.events);
+        }
       }
     }
+    this.shake.left = Math.max(0, this.shake.left - delta);
+    this.flash = Math.max(0, this.flash - delta);
     this.age(delta);
-    this.alpha = s.paused ? 0 : this.acc / TICK_MS;
+    this.alpha = s.paused ? 0 : Math.min(1, this.acc / TICK_MS);
     this.draw(s.game, this.alpha);
     s.onFrame();
   }
@@ -179,6 +198,11 @@ export class Scene {
   private draw(game: Game, a: number): void {
     const ctx = this.ctx;
     ctx.imageSmoothingEnabled = false;
+    ctx.save();
+    if (this.shake.left > 0 && !STILL) {
+      const k = this.shake.strength * (this.shake.left / 260);
+      ctx.translate(Math.round((Math.random() * 2 - 1) * k), Math.round((Math.random() * 2 - 1) * k));
+    }
     ctx.drawImage(this.street(), 0, 0);
     const poses = this.poses(game, a);
     const charge = this.session.paused ? null : this.input.charge();
@@ -190,12 +214,49 @@ export class Scene {
     for (const p of this.puffs) {
       const k = p.age / p.life;
       ctx.globalAlpha = 1 - k;
-      ctx.fillStyle = k < 0.3 ? '#e0f6ff' : k < 0.6 ? '#4dc3ff' : '#2a5cff';
+      ctx.fillStyle = p.colors[Math.min(p.colors.length - 1, Math.floor(k * p.colors.length))]!;
       const size = k < 0.4 ? 3 : 2;
       ctx.fillRect(Math.round(p.x - size / 2), Math.round(p.y), size, size);
     }
     ctx.globalAlpha = 1;
     if (charge !== null) this.chargeBar(charge);
+    ctx.restore();
+    if (this.flash > 0) {
+      ctx.fillStyle = `rgba(255, 255, 255, ${(0.22 * this.flash) / 120})`;
+      ctx.fillRect(0, 0, WIDTH, this.height);
+    }
+  }
+
+  /**
+   * What a landing does to the picture: dust from under it, a shake for a
+   * miss and a bigger one for a trick, a frozen beat for a trick, and a
+   * flash for PERFECT.
+   */
+  private jolt(game: Game): void {
+    const land = game.events.find((e) => e.type === 'land');
+    if (!land || land.type !== 'land') return;
+    const l = land.landing;
+    const t = game.thing;
+    const n = 10 + Math.min(16, t.length / 4);
+    for (let i = 0; i < n; i++) {
+      const side = i % 2 ? 1 : -1;
+      this.puffs.push({
+        x: CX + side * (t.length / 2) * Math.random(),
+        y: this.groundY - 1,
+        vx: side * (30 + Math.random() * 70),
+        vy: -(20 + Math.random() * 60),
+        age: 0,
+        life: 300 + Math.random() * 300,
+        colors: DUST_COLORS,
+        fall: 220,
+      });
+    }
+    if (!l.clean) this.shake = { left: 260, strength: 4 };
+    else if (l.extra) {
+      this.shake = { left: 260, strength: 3 + l.extra };
+      this.freeze = 90;
+    }
+    if (l.verdict === 'perfect') this.flash = 120;
   }
 
   /** Where each object is this frame, by phase. */
@@ -379,6 +440,8 @@ export class Scene {
           vy: dir * (100 + Math.random() * 140) * Math.max(0.3, Math.abs(c)),
           age: 0,
           life: 110 + Math.random() * 150,
+          colors: JET_COLORS,
+          fall: 0,
         });
       }
     }
@@ -388,6 +451,7 @@ export class Scene {
     const dt = delta / 1000;
     for (const p of this.puffs) {
       p.age += delta;
+      p.vy += p.fall * dt;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
     }

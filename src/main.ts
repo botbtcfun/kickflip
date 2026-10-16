@@ -2,10 +2,12 @@ import '@fontsource/press-start-2p/latin-400.css';
 import '@fontsource/vt323/latin-400.css';
 import './ui/style.css';
 
+import { Sound } from './audio/sound';
 import { MIN_HEIGHT, Scene, type Session, WIDTH } from './render/scene';
 import { Swipe } from './render/swipe';
 import { Game, type GameEvent } from './sim/game';
 import { InputLog } from './sim/replay';
+import { QUARTER } from './sim/rules';
 import { Hud, isTouch, points } from './ui/hud';
 
 /** The UTC day: the same objects for everyone, all day. */
@@ -18,6 +20,14 @@ const SOUND_KEY = 'kickflip:sound';
 
 const stage = document.getElementById('stage')!;
 const hud = new Hud();
+
+let soundOn = true;
+try {
+  soundOn = localStorage.getItem(SOUND_KEY) !== 'off';
+} catch {
+  // Storage can be blocked: sound stays on.
+}
+const sound = new Sound(!soundOn);
 // Before the page's own key handler, so the key that starts a run doesn't also flick.
 const swipe = new Swipe(stage);
 
@@ -29,6 +39,8 @@ class Run implements Session {
   started = false;
   pausedByUser = false;
   hidden = false;
+  /** Quarter turns ticked so far in this flight. */
+  private quarters = 0;
 
   get paused(): boolean {
     return !this.started || this.pausedByUser || this.hidden || this.game.over;
@@ -43,11 +55,23 @@ class Run implements Session {
     scene.reset();
     hud.clearVerdict();
     hud.overlay(null);
+    sound.unlock();
   }
 
   step(input: number): void {
     this.log.push(input);
     this.game.step(input);
+    // A tick for every quarter turn, and the Roadster's jets while it flies.
+    const f = this.game.flight;
+    if (this.game.phase === 'air' && f) {
+      const q = Math.floor(f.angle / QUARTER);
+      if (q > this.quarters) sound.tick();
+      this.quarters = q;
+      if (this.game.thing.quirk === 'thrusters') sound.thrust(f.thrust ? 1 : 0.45);
+    } else {
+      this.quarters = 0;
+      sound.thrust(0);
+    }
   }
 
   onEvents(events: GameEvent[]): void {
@@ -61,12 +85,21 @@ class Run implements Session {
         // The last life went, and the bonus one came: the surprise.
         if (events.some((b) => b.type === 'bonus')) note = 'BONUS LIFE! ONE MORE GO';
         hud.verdict(l, (scene.groundY - 128) * scene.zoom, note);
-      } else if (e.type === 'over') this.gameOver();
+        if (l.clean) sound.land(l, this.game.streak);
+        else sound.miss();
+      } else if (e.type === 'launch') sound.whoosh(e.intensity);
+      else if (e.type === 'bonus') sound.bonus();
+      else if (e.type === 'next') sound.roll();
+      else if (e.type === 'over') {
+        sound.over();
+        this.gameOver();
+      }
     }
   }
 
   onFrame(): void {
     swipe.enabled = !this.paused;
+    if (this.paused) sound.thrust(0);
     hud.update(this.game);
   }
 
@@ -88,14 +121,17 @@ class Run implements Session {
 
 const run = new Run();
 const scene = new Scene(run, swipe);
-swipe.onTap = () => scene.hop();
+swipe.onTap = () => {
+  scene.hop();
+  sound.hop();
+};
 document.getElementById('game')!.append(scene.canvas);
 
 function intro(): void {
-  const how = isTouch() ? 'SWIPE UP TO FLIP IT.' : 'DRAG UP, OR HOLD ↑ AND LET GO.';
+  const how = isTouch() ? 'SWIPE UP TO FLIP IT.' : 'DRAG UP, OR HOLD ↑<br>AND LET GO.';
   hud.overlay(`<h2 class="logo">KICKFLIP</h2>
 <p>${how}<br>LAND IT ON ITS WHEELS.</p>
-<p class="dim">The harder the flick, the more it spins.<br>Every object is harder. Three lives.</p>
+<p class="dim">The harder the flick, the more it spins.<br>Two turns land too, for double.<br>Every one is harder. Three lives.</p>
 <p class="blink">${tap()} TO START</p>`);
 }
 
@@ -177,17 +213,13 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('blur', away);
 
-// Sound comes on day 2; the button and M remember the choice already.
-let soundOn = true;
-try {
-  soundOn = localStorage.getItem(SOUND_KEY) !== 'off';
-} catch {
-  // Storage can be blocked: sound stays on.
-}
+// Sound, on unless turned off: the button and M remember the choice.
 hud.sound(soundOn);
 function toggleSound(): void {
   soundOn = !soundOn;
   hud.sound(soundOn);
+  sound.unlock();
+  sound.setMuted(!soundOn);
   try {
     localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off');
   } catch {
@@ -210,7 +242,10 @@ window.addEventListener('keydown', (e) => {
     run.togglePause();
   }
 });
-// A click, not a pointerdown: on phones only the end of a tap may start sound, later.
+// Browsers start sound only from a tap or a key: any will do. On phones only the end of a tap counts.
+document.addEventListener('pointerup', () => sound.unlock());
+window.addEventListener('keydown', () => sound.unlock());
+// A click, not a pointerdown, for the same reason.
 document.getElementById('overlay')!.addEventListener('click', () => {
   if (!run.started || run.game.over) run.begin();
   else if (run.pausedByUser) run.togglePause();
@@ -223,4 +258,4 @@ layout();
 scene.start();
 
 // For checking the game from the browser console while developing.
-if (import.meta.env.DEV) Object.assign(window, { kickflip: run, scene, swipe });
+if (import.meta.env.DEV) Object.assign(window, { kickflip: run, scene, swipe, sound });

@@ -62,6 +62,9 @@ pnpm build      # the static site in dist/, and the whole game in one file
   as a stack of slabs, each as wide as the object is at that height, turned
   and squashed, so a cabin turns narrower than its car and a head turns on
   its body.
+- `src/audio`: the sounds, synthesised in the browser with Web Audio as they
+  play: a whoosh for the flick, a tick each quarter turn, a chord on landing
+  that climbs with the streak, a bell for PERFECT. There are no audio files.
 - `src/ui`: the strip, the card, the verdicts and the screens.
 - `worker`: the Cloudflare Worker serving the game.
 
