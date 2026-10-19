@@ -32,7 +32,7 @@ export interface Thing {
   quirk: Quirk;
   /** Full turns to land: 1, or 2 for a double. */
   turns: number;
-  /** 0 for an opener, which comes at its place in every run; else the tier it's drawn from, which opens at a level. */
+  /** 0 for an opener, which comes at its place in every run; LAST_TIER for the 21st; else the tier it's drawn from, which opens at a level. */
   tier: number;
   length: number;
   height: number;
@@ -56,7 +56,8 @@ const spec = (name: string, weight: Weight, tier: number, [length, height, width
  * All 21, the openers first, in their order: each teaches one thing. Then
  * the pool, by tier: everyday things from level 7, heavy things and the
  * doubles from level 10, and the odd ones from level 13. Most stand tall
- * rather than lie flat, and some you'd never kickflip. A run that gets to 21
+ * rather than lie flat, and some you'd never kickflip. The 21st is always
+ * the last bitcoin, as Bitcoin stops at 21 million. A run that gets to 21
  * meets every one once.
  */
 const SPECS: Record<string, Spec> = {
@@ -81,9 +82,11 @@ const SPECS: Record<string, Spec> = {
 
   banana: spec('BANANA', 'standard', 3, [56, 14, 14], { quirk: 'narrow' }),
   pin: spec('BOWLING PIN', 'light', 3, [18, 48, 18], { quirk: 'narrow' }),
-  icecube: spec('ICE CUBE', 'standard', 3, [30, 30, 30], { quirk: 'slippery' }),
   fish: spec('FISH', 'light', 3, [56, 18, 12], { quirk: 'slippery' }),
   cat: spec('CAT', 'standard', 3, [48, 30, 22], { quirk: 'feet' }),
+
+  // The 21st, always: the last of 21 million. A coin, flipped like one, to land heads up.
+  coin: spec('LAST BITCOIN', 'standard', 4, [40, 6, 40]),
 };
 
 export const OBJECTS: Record<string, Thing> = Object.fromEntries(Object.entries(SPECS).map(([id, s]) => [id, { id, ...s }]));

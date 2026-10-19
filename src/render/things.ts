@@ -777,30 +777,55 @@ function pin(t: Thing): Paint {
   return { side, top, bottom, across: (x, y) => Math.sqrt(Math.max(0.25, along(radius, y) ** 2 - (x - c) ** 2)) };
 }
 
-/** An ice cube: pale blue, frosted in the middle, bubbles, a crack, a cold rim. */
-function icecube(t: Thing): Paint {
+/** Pixel glyphs drawn from rows of X: the ₿ on heads, the digits on tails. */
+const GLYPHS: Record<string, string[]> = {
+  B: ['..X.X....', '..X.X....', 'XXXXXXX..', '.XX...XX.', '.XX...XX.', '.XX..XX..', '.XXXXX...', '.XX..XXX.', '.XX....XX', '.XX....XX', 'XXXXXXXX.', '..X.X....', '..X.X....'],
+  '2': ['XXX', '..X', 'XXX', 'X..', 'XXX'],
+  '1': ['.X.', 'XX.', '.X.', '.X.', 'XXX'],
+  M: ['X...X', 'XX.XX', 'X.X.X', 'X...X', 'X...X'],
+};
+
+/** Whether a point is on a glyph drawn at `scale`, its top left at (x0, y0). */
+function onGlyph(glyph: string[], x: number, y: number, x0: number, y0: number, scale: number): boolean {
+  const row = glyph[Math.floor((y - y0) / scale)];
+  return !!row && x >= x0 && row[Math.floor((x - x0) / scale)] === 'X';
+}
+
+/**
+ * The last bitcoin: a coin lying flat, flipped like one, to land heads up.
+ * Heads is bitcoin orange with a cream ₿ in a gold rim; tails says 21M; the
+ * edge is gold with its ridges.
+ */
+function coin(t: Thing): Paint {
   const { length: L, height: H, width: W } = t;
-  const face = (w: number, h: number, seed: number) =>
-    shade(
-      w,
-      h,
-      (x, y) => {
-        if (!rounded(x, y, 0, 0, w, h, 3)) return null;
-        if (oval(x, y, w / 2, h / 2, w * 0.3, h * 0.3) < 1 && noise(x * 0.5, y * 0.5, seed) < 0.55) return '#e8f8ff';
-        if (noise(x, y, seed + 1) < 0.02) return '#ffffff';
-        if (toPath(x, y, [
-          [w * 0.2, h * 0.7],
-          [w * 0.45, h * 0.55],
-          [w * 0.5, h * 0.3],
-        ]) < 0.5)
-          return '#f4fcff';
-        if (x < 3 || y < 3) return '#f0faff';
-        return mix('#d4f0ff', '#7cc4ea', (x + y) / (w + h));
-      },
-      0.45,
-      '#3a88c0',
-    );
-  return { side: face(L, H, 20), top: face(L, W, 22), bottom: face(L, W, 24) };
+  const r = L / 2 - 0.5;
+  const side = shade(L, H, (x, y) => {
+    if (y < 1) return '#ffe08a';
+    if (y > H - 1) return '#8a6410';
+    return Math.floor(x) % 2 === 0 ? '#b08418' : '#d9a520';
+  });
+  const face = (heads: boolean) =>
+    shade(L, W, (x, y) => {
+      const d = Math.hypot(x - L / 2, y - W / 2);
+      if (d > r) return null;
+      if (d > r - 2.5) return Math.floor(Math.atan2(y - W / 2, x - L / 2) * 12) % 2 === 0 ? '#e0b030' : '#c8961c';
+      if (d > r - 3.5) return '#a87a14';
+      if (heads) {
+        const [gx, gy] = [L / 2 - 9, W / 2 - 13];
+        if (onGlyph(GLYPHS.B!, x, y, gx, gy, 2)) return '#fff4e6';
+        if (onGlyph(GLYPHS.B!, x - 1, y - 1, gx, gy, 2)) return '#b85a10';
+        return mix('#ffb04a', '#e07a10', (x + y) / (L + W));
+      }
+      const word = ['2', '1', 'M'];
+      let gx = L / 2 - 13;
+      for (const ch of word) {
+        const g = GLYPHS[ch]!;
+        if (onGlyph(g, x, y, gx, W / 2 - 5, 2)) return '#7a5410';
+        gx += (g[0]!.length + 1) * 2;
+      }
+      return mix('#f0c040', '#c8961c', (x + y) / (L + W));
+    });
+  return { side, top: face(true), bottom: face(false) };
 }
 
 /** A fish, facing right: blue back, silver flank, pale belly, scales, an eye and gill, a forked tail, fins. */
@@ -913,9 +938,9 @@ export const PAINTS: Record<string, (t: Thing) => Paint> = {
   toast,
   banana,
   pin,
-  icecube,
   fish,
   cat,
+  coin,
 };
 
 /** Any object without its own paint: a plain box. */

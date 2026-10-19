@@ -281,6 +281,19 @@ body.touch .loading {
   color: var(--ink);
 }
 
+/* The block's hash: zeros in front for a good landing, as with proof of work. */
+.verdict .hash {
+  font-family: var(--crt);
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: var(--neon);
+}
+
+.verdict.under .hash,
+.verdict.over .hash {
+  color: var(--bad);
+}
+
 .verdict.show {
   animation: pop 1.2s ease-out forwards;
 }
@@ -459,4 +472,39 @@ body.embed {
   color: var(--ink);
   background: rgba(0, 0, 0, 0.7);
   pointer-events: none;
+}
+
+/* A narrow stage: a compact strip, so five hearts and a long score fit beside the buttons. */
+body.narrow .strip {
+  gap: 6px;
+  padding-left: max(6px, env(safe-area-inset-left));
+  padding-right: max(6px, env(safe-area-inset-right));
+}
+
+body.narrow .strip .score {
+  font-size: 12px;
+}
+
+body.narrow .streak {
+  margin-left: 4px;
+  font-size: 10px;
+}
+
+body.narrow .key {
+  width: 28px;
+  height: 28px;
+}
+
+body.narrow .lives {
+  gap: 2px;
+}
+
+body.narrow .lives svg {
+  width: 11px;
+  height: 10px;
+}
+
+.strip .key,
+.strip .lives {
+  flex: none;
 }

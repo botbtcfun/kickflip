@@ -10,7 +10,8 @@ There are 21 things to flip, and most were never meant to be: a roadster
 with thrusters under its floor, a skateboard, a pizza box, a brick, a
 penguin, a giraffe, a fridge, a cat. Each run starts with the same six, then
 the day's draw brings the rest, everyday things first, then the heavy ones,
-then the odd ones. A run that gets to 21 meets every one once.
+then the odd ones. The 21st is always the last bitcoin, as Bitcoin stops at
+21 million. A run that gets to 21 meets every one once.
 
 [Play it](https://kickflip.botbtc.fun), or
 [watch 20 seconds of it](https://kickflip.botbtc.fun/clip.mp4). To share it on X, post
@@ -35,8 +36,13 @@ which X may show as the game itself, playable in the post.
   need a hard flick. The card under each object says which it is.
 - **Quirks.** The roadster's thrusters land anything, and the cat always
   lands on its feet. The paper plane and the toast need two turns. The
-  banana and the bowling pin are narrow, and the ice cube and the fish are
-  slippery: they forgive less.
+  banana and the bowling pin are narrow, and the fish is slippery: they
+  forgive less.
+- **Blocks.** Every landing mines a block, and the verdict shows its hash:
+  more zeros in front the closer the flick came, as with proof of work, and
+  ten for a dead-on PERFECT. A miss orphans the block. Your streak is your
+  chain. The 21st object is a coin, the last bitcoin, flipped like one: land
+  it heads up and the supply is capped.
 - **Score.** Points grow with each object, double for a PERFECT, and
   multiply with a streak of clean landings, up to ×8.
 - **Tricks.** Two whole turns land too, and so do three: a double kickflip

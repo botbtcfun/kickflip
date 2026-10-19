@@ -3,7 +3,7 @@
  * in thousandths of a degree; heights in thousandths of a pixel. A change
  * here changes what a run scores, so bump RULES_VERSION with it.
  */
-export const RULES_VERSION = 5;
+export const RULES_VERSION = 6;
 export const TICK_HZ = 60;
 
 /** A full turn, in thousandths of a degree. */
@@ -61,6 +61,9 @@ export const PERFECT_DIV = 3;
 // The objects
 /** The level each tier of the pool opens at: everyday things, then heavy ones, then the odd ones. Tier 0 is the openers. */
 export const TIER_LEVELS = [0, 7, 10, 13];
+/** The tier of the one object that comes at LAST_LEVEL, and only there: the last bitcoin, as the supply stops at 21 million. */
+export const LAST_TIER = 4;
+export const LAST_LEVEL = 21;
 
 // Score
 export const OBJECT_POINTS = 100;

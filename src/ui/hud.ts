@@ -44,15 +44,22 @@ export class Hud {
   }
 
   /** The verdict, popping up `top` CSS pixels from the top of the stage. */
-  verdict(l: Landing, top: number, note = ''): void {
+  /**
+   * The verdict, popping up `top` CSS pixels from the top of the stage. A
+   * landing mines a block, at `height`: its title says so, or a trick's name,
+   * or ORPHANED for a miss; then PERFECT or CLEAN and the points, or UNDER or
+   * OVER and the life it cost; then the block's hash, and any notes.
+   */
+  verdict(l: Landing, top: number, height: number, hash: string, note = ''): void {
     const v = this.verdictBox;
     v.className = 'verdict';
     // Restarts the animation for a verdict like the last one.
     void v.offsetWidth;
     v.style.top = `${Math.round(top)}px`;
-    const sub = l.clean ? `${l.verdict === 'perfect' && l.extra ? 'PERFECT ' : ''}+${points(l.points)}${l.extra ? ` ×${1 + l.extra}` : ''}` : '−1 LIFE';
-    const title = l.extra ? `${TRICKS[l.turns] ?? `${l.turns}×`} KICKFLIP!` : l.verdict.toUpperCase();
-    v.innerHTML = `${title}<small>${sub}${note ? `<br>${note}` : ''}</small>`;
+    const title = !l.clean ? 'ORPHANED' : l.extra ? `${TRICKS[l.turns] ?? `${l.turns}×`} KICKFLIP!` : `BLOCK ${height} MINED`;
+    const sub = l.clean ? `${l.verdict.toUpperCase()} +${points(l.points)}${l.extra ? ` ×${1 + l.extra}` : ''}` : `${l.verdict.toUpperCase()} · −1 LIFE`;
+    const proof = `<span class="hash">${hash}${l.clean ? '' : ' ABOVE TARGET'}</span>`;
+    v.innerHTML = `${title}<small>${sub}<br>${proof}${note ? `<br>${note}` : ''}</small>`;
     v.classList.add('show', l.extra ? 'trick' : l.verdict);
   }
 

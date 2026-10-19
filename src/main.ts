@@ -6,8 +6,10 @@ import { Sound } from './audio/sound';
 import { MIN_HEIGHT, Scene, type Session, WIDTH } from './render/scene';
 import { Swipe } from './render/swipe';
 import { Game, type GameEvent } from './sim/game';
+import type { Landing } from './sim/flip';
 import { InputLog } from './sim/replay';
-import { QUARTER } from './sim/rules';
+import { Rng } from './sim/rng';
+import { LAST_LEVEL, QUARTER, TURN } from './sim/rules';
 import { Hud, isTouch, points } from './ui/hud';
 
 /** The UTC day: the same objects for everyone, all day. */
@@ -90,7 +92,8 @@ class Run implements Session {
         const missed = Math.abs(l.error) > l.window;
         const notes = [!missed ? '' : quirk === 'thrusters' ? 'THRUSTERS SAVED IT' : quirk === 'feet' ? 'ON ITS FEET, AS EVER' : ''];
         if (l.lives) notes.push(l.lives === 1 ? '+1 LIFE' : `+${l.lives} LIVES`);
-        hud.verdict(l, (scene.groundY - 128) * scene.zoom, notes.filter(Boolean).join('<br>'));
+        if (l.clean && this.game.level === LAST_LEVEL) notes.push('SUPPLY CAPPED AT 21M');
+        hud.verdict(l, (scene.groundY - 150) * scene.zoom, this.game.level, blockHash(l, this.game.level), notes.filter(Boolean).join('<br>'));
         if (l.clean) sound.land(l, this.game.streak);
         else sound.miss();
         if (l.lives) sound.life();
@@ -119,10 +122,26 @@ class Run implements Session {
     const g = this.game;
     hud.overlay(`<h2>GAME OVER</h2>
 <p class="big">${points(g.score)}</p>
-<p>${g.index} LANDED · BEST STREAK ×${g.best}</p>
+<p>${g.index} BLOCKS MINED · LONGEST CHAIN ${g.best}</p>
 <p class="dim">THE ${g.thing.name} GOT YOU</p>
 <p class="blink">${tap()} TO PLAY AGAIN</p>${full()}`);
   }
+}
+
+/**
+ * A landing's block hash, to show: zeros in front as with proof of work,
+ * more the closer the flick came. Five to ten for a clean landing, eight or
+ * more for PERFECT, one to three for a miss. Only for show: it changes
+ * nothing in the run, and comes out the same for the same landing.
+ */
+function blockHash(l: Landing, height: number): string {
+  const rng = new Rng(`block:${day}:${height}:${l.angle}:${l.error}`);
+  const off = Math.abs(l.angle - l.turns * TURN);
+  const zeros = l.clean ? 5 + Math.round(5 * (1 - Math.min(1, Math.abs(l.error) / l.window))) : 3 - Math.round(2 * Math.min(1, (off - l.window) / l.window));
+  // The first digit after the zeros is never 0, so the count is what it says.
+  let hex = '0'.repeat(Math.max(1, zeros)) + '123456789abcdef'[rng.below(15)]!;
+  while (hex.length < 16) hex += '0123456789abcdef'[rng.below(16)]!;
+  return hex;
 }
 
 const run = new Run();
@@ -137,7 +156,7 @@ function intro(): void {
   const how = isTouch() ? 'SWIPE UP, OR HOLD<br>AND LET GO.' : 'HOLD THE MOUSE OR ↑<br>AND LET GO, OR DRAG UP.';
   hud.overlay(`<h2 class="logo">KICKFLIP</h2>
 <p>${how}<br>LAND IT ON ITS WHEELS.</p>
-<p class="dim">The longer the hold, or the faster the swipe,<br>the more it spins. Every one is harder.</p>
+<p class="dim">The longer the hold, or the faster the swipe,<br>the more it spins. Every one is harder.<br>Each landing mines a block; the 21st is the last bitcoin.</p>
 <p class="dim">Three lives. Earn more with two PERFECTs<br>in a row, or a double or triple kickflip.</p>
 <p class="blink">${tap()} TO START</p>${full()}`);
 }
@@ -184,6 +203,8 @@ function layout(): void {
   document.body.classList.toggle('landscape', h < w);
   const { zoom, width, height } = fit();
   scene.resize(width, height, zoom);
+  // A narrow stage gets a compact strip, so five hearts and a long score still leave room for the buttons.
+  document.body.classList.toggle('narrow', width * zoom < 440);
 }
 
 // Rotation, the browser's bars sliding in and out, and zoom all resize: lay out once a frame at most.

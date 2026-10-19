@@ -6,7 +6,7 @@ import { OBJECTS, type Thing, thing } from './objects';
 import { InputLog, replay } from './replay';
 import { Rng } from './rng';
 import * as R from './rules';
-import { OPENERS, POOL, Sequence } from './sequence';
+import { LAST, OPENERS, POOL, Sequence } from './sequence';
 
 const LIGHT: Thing = { id: 'test-light', name: 'TEST', weight: 'light', quirk: null, turns: 1, tier: 1, length: 10, height: 4, width: 4 };
 
@@ -132,7 +132,6 @@ describe('the flip', () => {
     // 600 on a standard object is 72 degrees over: clean with the full window, not with a narrow one.
     expect(flip(thing('skateboard'), 600).landing.clean).toBe(true);
     expect(flip(thing('banana'), 600).landing.verdict).toBe('over');
-    expect(flip(thing('icecube'), 600).landing.verdict).toBe('over');
   });
 
   it('lands a double or a triple clean, for more', () => {
@@ -418,7 +417,7 @@ describe('the input log', () => {
 
   it('matches the recorded golden run for this version of the rules', () => {
     const { game, log } = scripted('golden');
-    expect(R.RULES_VERSION).toBe(5);
+    expect(R.RULES_VERSION).toBe(6);
     expect({ score: game.score, landed: game.index, tick: game.tick, hash: game.hash(), bytes: log.encode().length }).toMatchInlineSnapshot(`
       {
         "bytes": 58,
@@ -445,10 +444,20 @@ describe('the input log', () => {
 });
 
 describe('the sequence', () => {
-  it('has 21 objects: six openers and fifteen in the pool', () => {
+  it('has 21 objects: six openers, fourteen in the pool, and the last bitcoin', () => {
     expect(Object.keys(OBJECTS)).toHaveLength(21);
     expect(OPENERS).toEqual(['roadster', 'skateboard', 'pizzabox', 'sneaker', 'brick', 'penguin']);
-    expect(POOL).toHaveLength(15);
+    expect(POOL).toHaveLength(14);
+    expect(LAST).toBe('coin');
+  });
+
+  it('puts the last bitcoin at 21 in every run, and nowhere else', () => {
+    for (const seed of ['day:7', 'day:20000', 'golden']) {
+      const seq = new Sequence(seed);
+      const list = Array.from({ length: 100 }, (_, i) => seq.at(i));
+      expect(list[R.LAST_LEVEL - 1]).toBe('coin');
+      expect(list.filter((id) => id === 'coin')).toHaveLength(1);
+    }
   });
 
   it('starts with the openers, never repeats an object twice in a row, and depends on the seed alone', () => {
@@ -467,7 +476,7 @@ describe('the sequence', () => {
     for (let s = 0; s < 50; s++) {
       const seq = new Sequence(`day:${s}`);
       const list = Array.from({ length: 21 }, (_, i) => thing(seq.at(i)));
-      list.forEach((t, i) => expect(R.TIER_LEVELS[t.tier]!, `${t.id} at level ${i + 1}`).toBeLessThanOrEqual(i + 1));
+      list.forEach((t, i) => t.tier !== R.LAST_TIER && expect(R.TIER_LEVELS[t.tier]!, `${t.id} at level ${i + 1}`).toBeLessThanOrEqual(i + 1));
       expect(new Set(list.map((t) => t.id)).size).toBe(21);
     }
     // Different days, different orders.
