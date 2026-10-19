@@ -43,11 +43,14 @@ which X may show as the game itself, playable in the post.
   ten for a dead-on PERFECT. A miss orphans the block. Your streak is your
   chain. The 21st object is a coin, the last bitcoin, flipped like one: land
   it heads up and the supply is capped.
-- **Score.** Points grow with each object, double for a PERFECT, and
-  multiply with a streak of clean landings, up to ×8.
-- **Tricks.** Two whole turns land too, and so do three: a double kickflip
-  pays twice, a triple three times. Flicking as hard as you can never lands
-  anything.
+- **Score, in sats.** Each block pays its subsidy, 1,000 sats at first,
+  halving every six blocks as Bitcoin's does. PERFECTs and tricks pay fees,
+  which grow with each object and never halve, so late in a run fees are
+  most of the pay. All of it is multiplied by your chain of clean landings,
+  up to ×8.
+- **Tricks.** Two whole turns land too, and so do three: a double or a
+  triple kickflip pays a fee for each extra turn. Flicking as hard as you
+  can never lands anything.
 - **Lives.** Three to start. Two PERFECTs in a row earn one more, a double
   earns one and a triple two, up to five. Earned hearts show in gold.
 

@@ -1,5 +1,5 @@
 import type { Landing } from '../sim/flip';
-import type { Game } from '../sim/game';
+import { type Game, subsidyAt } from '../sim/game';
 import { QUIRK_NAMES } from '../sim/objects';
 import { LIVES, MAX_STREAK } from '../sim/rules';
 
@@ -40,7 +40,9 @@ export class Hud {
     const meta = [`NO. ${game.level}`, t.weight.toUpperCase()];
     if (t.quirk) meta.push(QUIRK_NAMES[t.quirk]);
     if (t.turns > 1) meta.push('DOUBLE');
-    this.set(this.meta, meta.join(' · '));
+    meta.push(`SUBSIDY ${points(subsidyAt(game.level))}`);
+    // Each item kept whole, so a narrow card wraps between them.
+    this.set(this.meta, meta.map((m) => `<span>${m}</span>`).join(' · '));
   }
 
   /** The verdict, popping up `top` CSS pixels from the top of the stage. */
@@ -57,9 +59,12 @@ export class Hud {
     void v.offsetWidth;
     v.style.top = `${Math.round(top)}px`;
     const title = !l.clean ? 'ORPHANED' : l.extra ? `${TRICKS[l.turns] ?? `${l.turns}×`} KICKFLIP!` : `BLOCK ${height} MINED`;
-    const sub = l.clean ? `${l.verdict.toUpperCase()} +${points(l.points)}${l.extra ? ` ×${1 + l.extra}` : ''}` : `${l.verdict.toUpperCase()} · −1 LIFE`;
+    const sub = l.clean ? `${l.verdict.toUpperCase()} +${points(l.points)}` : `${l.verdict.toUpperCase()} · −1 LIFE`;
+    // What the block paid: its subsidy, any fees, and the chain it's on.
+    const chain = l.clean ? Math.round(l.points / (l.subsidy + l.fees)) : 0;
+    const pay = l.clean ? `<span class="hash">${points(l.subsidy)} SUBSIDY${l.fees ? ` + ${points(l.fees)} FEES` : ''}${chain > 1 ? ` ×${chain}` : ''}</span><br>` : '';
     const proof = `<span class="hash">${hash}${l.clean ? '' : ' ABOVE TARGET'}</span>`;
-    v.innerHTML = `${title}<small>${sub}<br>${proof}${note ? `<br>${note}` : ''}</small>`;
+    v.innerHTML = `${title}<small>${sub}<br>${pay}${proof}${note ? `<br>${note}` : ''}</small>`;
     v.classList.add('show', l.extra ? 'trick' : l.verdict);
   }
 

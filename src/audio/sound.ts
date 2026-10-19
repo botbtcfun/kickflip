@@ -127,6 +127,13 @@ export class Sound {
     [12, 16, 19, 24].forEach((s, i) => this.tone(0.35 + i * 0.08, 0.2, 'square', 0.07, note(s)));
   }
 
+  /** A halving: the subsidy steps down, and so do two notes, an octave apart. */
+  halving(): void {
+    this.tone(0.3, 0.28, 'triangle', 0.16, note(12));
+    this.tone(0.52, 0.5, 'triangle', 0.16, note(0));
+    this.tone(0.52, 0.5, 'sine', 0.1, note(-12));
+  }
+
   /** Out of lives: four notes down. */
   over(): void {
     [7, 3, 0, -5].forEach((s, i) => this.tone(i * 0.2, 0.32, 'triangle', 0.14, note(s)));

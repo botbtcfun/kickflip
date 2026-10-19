@@ -3,7 +3,7 @@
  * in thousandths of a degree; heights in thousandths of a pixel. A change
  * here changes what a run scores, so bump RULES_VERSION with it.
  */
-export const RULES_VERSION = 6;
+export const RULES_VERSION = 7;
 export const TICK_HZ = 60;
 
 /** A full turn, in thousandths of a degree. */
@@ -65,10 +65,14 @@ export const TIER_LEVELS = [0, 7, 10, 13];
 export const LAST_TIER = 4;
 export const LAST_LEVEL = 21;
 
-// Score
-export const OBJECT_POINTS = 100;
-export const PERFECT_TIMES = 2;
-/** The most a streak of clean landings multiplies the points. */
+// Score, in sats: each block mined pays its subsidy and its fees, times the chain.
+/** The block subsidy at the start, halving every HALVING_EVERY blocks, as Bitcoin's does every 210,000. */
+export const SUBSIDY = 1000;
+export const HALVING_EVERY = 6;
+/** Fees, which never halve: per object number, for a PERFECT, and for each turn a trick lands beyond the object's own. */
+export const FEE_PERFECT = 100;
+export const FEE_PER_EXTRA_TURN = 250;
+/** The most a chain of clean landings multiplies a block's pay. */
 export const MAX_STREAK = 8;
 export const LIVES = 3;
 /** Lives are earned: a life for this many PERFECT landings in a row, counting again from none after. */

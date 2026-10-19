@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { type Flight, type Landing, airtime, fly, gain, goal, judge, launch, sweetSpot, windowAt, windowFor } from './flip';
-import { Game } from './game';
+import { Game, subsidyAt } from './game';
 import { OBJECTS, type Thing, thing } from './objects';
 import { InputLog, replay } from './replay';
 import { Rng } from './rng';
@@ -229,32 +229,45 @@ describe('a run', () => {
     expect(game.level).toBe(7);
   });
 
-  it('scores the level, doubles a PERFECT, and multiplies by the streak', () => {
+  it('pays each block its subsidy and fees, times the chain', () => {
     const game = new Game('day:1');
-    expect(flick(game, 500).points).toBe(100 * 1 * 2 * 1);
-    expect(flick(game, 500).points).toBe(100 * 2 * 2 * 2);
-    expect(sweet(game).points).toBe(100 * 3 * 2 * 3);
-    expect(game.score).toBe(200 + 800 + 1800);
+    // PERFECT on the Roadster, object 1: the subsidy and a 100-sat fee.
+    const first = flick(game, 500);
+    expect([first.subsidy, first.fees, first.points]).toEqual([1000, 100, 1100]);
+    // PERFECT on the skateboard, object 2, chain 2.
+    expect(flick(game, 500).points).toBe((1000 + 200) * 2);
+    // CLEAN, not PERFECT, on the pizza box: the subsidy alone, chain 3.
+    const clean = flick(game, 560);
+    expect([clean.verdict, clean.fees, clean.points]).toEqual(['clean', 0, 1000 * 3]);
+    expect(game.score).toBe(1100 + 2400 + 3000);
     expect(game.streak).toBe(3);
-    expect(game.perfects).toBe(3);
   });
 
-  it("multiplies the points by the turns landed beyond the object's own", () => {
+  it('halves the subsidy every six blocks', () => {
+    expect([1, 6, 7, 12, 13, 18, 19, 25].map(subsidyAt)).toEqual([1000, 1000, 500, 500, 250, 250, 125, 62]);
+  });
+
+  it('pays a trick as fees, which never halve', () => {
     const game = new Game('day:1');
     flick(game, 500);
-    // A perfect double on the skateboard, level 2, streak 2.
+    // A PERFECT double on the skateboard, object 2, chain 2: the PERFECT fee and one extra turn's.
     const l = flick(game, 1000);
     expect(l.extra).toBe(1);
-    expect(l.points).toBe(100 * 2 * 2 * 2 * 2);
+    expect(l.fees).toBe(2 * (R.FEE_PERFECT + R.FEE_PER_EXTRA_TURN));
+    expect(l.points).toBe((1000 + l.fees) * 2);
   });
 
-  it('caps the streak multiplier', () => {
+  it('pays mostly fees late in a run, and caps the chain', () => {
     const game = new Game('day:1');
     for (let i = 0; i < 12; i++) expect(sweet(game).clean).toBe(true);
     expect(game.streak).toBe(12);
     settle(game);
     const level = game.level;
-    expect(sweet(game).points).toBe(100 * level * 2 * R.MAX_STREAK);
+    const l = sweet(game);
+    // Object 13: the subsidy has halved twice, the PERFECT fee has grown.
+    expect([l.subsidy, l.fees]).toEqual([250, 100 * level]);
+    expect(l.fees).toBeGreaterThan(l.subsidy);
+    expect(l.points).toBe((250 + 100 * level) * R.MAX_STREAK);
   });
 
   it('takes a life for a miss, keeps the object, and resets the streak', () => {
@@ -417,13 +430,13 @@ describe('the input log', () => {
 
   it('matches the recorded golden run for this version of the rules', () => {
     const { game, log } = scripted('golden');
-    expect(R.RULES_VERSION).toBe(6);
+    expect(R.RULES_VERSION).toBe(7);
     expect({ score: game.score, landed: game.index, tick: game.tick, hash: game.hash(), bytes: log.encode().length }).toMatchInlineSnapshot(`
       {
         "bytes": 58,
-        "hash": 3493769405,
+        "hash": 1056863487,
         "landed": 7,
-        "score": 8800,
+        "score": 15400,
         "tick": 1268,
       }
     `);

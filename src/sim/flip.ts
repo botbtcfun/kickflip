@@ -42,8 +42,11 @@ export interface Landing {
   angle: number;
   /** Where it comes to rest: its wheels, or one of its sides, or its roof. */
   rest: number;
+  /** What the block paid: its subsidy and fees, times the chain. The game sets these, as it does the lives. */
   points: number;
-  /** Lives the landing earned, after the cap. The game sets it, as it does the points. */
+  subsidy: number;
+  fees: number;
+  /** Lives the landing earned, after the cap. */
   lives: number;
 }
 
@@ -134,5 +137,5 @@ export function judge(thing: Thing, level: number, f: Flight): Landing {
     }
     rest = q * R.QUARTER;
   }
-  return { verdict: perfect ? 'perfect' : clean ? 'clean' : off < 0 ? 'under' : 'over', clean, turns, extra, error, window, angle: f.angle, rest, points: 0, lives: 0 };
+  return { verdict: perfect ? 'perfect' : clean ? 'clean' : off < 0 ? 'under' : 'over', clean, turns, extra, error, window, angle: f.angle, rest, points: 0, subsidy: 0, fees: 0, lives: 0 };
 }

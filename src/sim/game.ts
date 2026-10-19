@@ -17,6 +17,9 @@ export type GameEvent =
   | { type: 'next'; id: string }
   | { type: 'over' };
 
+/** The block subsidy at an object's number: SUBSIDY, halved every HALVING_EVERY blocks. */
+export const subsidyAt = (level: number) => Math.floor(R.SUBSIDY / 2 ** Math.floor((level - 1) / R.HALVING_EVERY));
+
 /**
  * A run: objects one after another, each flipped until it lands on its
  * wheels. Three lives to start, and more to earn: one for two PERFECT
@@ -123,8 +126,10 @@ export class Game {
       this.streak++;
       this.best = Math.max(this.best, this.streak);
       if (landing.verdict === 'perfect') this.perfects++;
-      // A double pays twice, a triple three times, on top of the rest.
-      landing.points = R.OBJECT_POINTS * this.level * (landing.verdict === 'perfect' ? R.PERFECT_TIMES : 1) * Math.min(this.streak, R.MAX_STREAK) * (1 + landing.extra);
+      // The block pays its subsidy, which halves, and fees for a PERFECT and a trick, which don't; times the chain.
+      landing.subsidy = subsidyAt(this.level);
+      landing.fees = this.level * ((landing.verdict === 'perfect' ? R.FEE_PERFECT : 0) + landing.extra * R.FEE_PER_EXTRA_TURN);
+      landing.points = (landing.subsidy + landing.fees) * Math.min(this.streak, R.MAX_STREAK);
       this.score += landing.points;
       // Lives to earn: one per extra turn of a trick, one for every second PERFECT in a row.
       let earned = landing.extra * R.LIVES_PER_EXTRA_TURN;

@@ -508,3 +508,26 @@ body.narrow .lives svg {
 .strip .lives {
   flex: none;
 }
+
+/* The score at game over, in sats. */
+.overlay .big small {
+  font-size: 12px;
+}
+
+body.narrow .overlay .big {
+  font-size: 20px;
+}
+
+/* A narrow stage: the card's line and the verdict's sums a size down, so they stay on one line. */
+body.narrow .card .meta {
+  font-size: 16px;
+}
+
+body.narrow .verdict .hash {
+  font-size: 16px;
+  letter-spacing: 0;
+}
+
+.card .meta span {
+  white-space: nowrap;
+}

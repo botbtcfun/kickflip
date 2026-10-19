@@ -5,11 +5,11 @@ import './ui/style.css';
 import { Sound } from './audio/sound';
 import { MIN_HEIGHT, Scene, type Session, WIDTH } from './render/scene';
 import { Swipe } from './render/swipe';
-import { Game, type GameEvent } from './sim/game';
+import { Game, type GameEvent, subsidyAt } from './sim/game';
 import type { Landing } from './sim/flip';
 import { InputLog } from './sim/replay';
 import { Rng } from './sim/rng';
-import { LAST_LEVEL, QUARTER, TURN } from './sim/rules';
+import { HALVING_EVERY, LAST_LEVEL, QUARTER, TURN } from './sim/rules';
 import { Hud, isTouch, points } from './ui/hud';
 
 /** The UTC day: the same objects for everyone, all day. */
@@ -93,10 +93,14 @@ class Run implements Session {
         const notes = [!missed ? '' : quirk === 'thrusters' ? 'THRUSTERS SAVED IT' : quirk === 'feet' ? 'ON ITS FEET, AS EVER' : ''];
         if (l.lives) notes.push(l.lives === 1 ? '+1 LIFE' : `+${l.lives} LIVES`);
         if (l.clean && this.game.level === LAST_LEVEL) notes.push('SUPPLY CAPPED AT 21M');
-        hud.verdict(l, (scene.groundY - 150) * scene.zoom, this.game.level, blockHash(l, this.game.level), notes.filter(Boolean).join('<br>'));
+        // The last block of an epoch: the subsidy halves from the next.
+        const halving = l.clean && this.game.level % HALVING_EVERY === 0;
+        if (halving) notes.push(`HALVING! SUBSIDY ${points(subsidyAt(this.game.level + 1))}`);
+        hud.verdict(l, (scene.groundY - 170) * scene.zoom, this.game.level, blockHash(l, this.game.level), notes.filter(Boolean).join('<br>'));
         if (l.clean) sound.land(l, this.game.streak);
         else sound.miss();
         if (l.lives) sound.life();
+        if (halving) sound.halving();
       } else if (e.type === 'launch') sound.whoosh(e.intensity);
       else if (e.type === 'next') sound.roll();
       else if (e.type === 'over') {
@@ -121,7 +125,7 @@ class Run implements Session {
   private gameOver(): void {
     const g = this.game;
     hud.overlay(`<h2>GAME OVER</h2>
-<p class="big">${points(g.score)}</p>
+<p class="big">${points(g.score)}<small> SATS</small></p>
 <p>${g.index} BLOCKS MINED · LONGEST CHAIN ${g.best}</p>
 <p class="dim">THE ${g.thing.name} GOT YOU</p>
 <p class="blink">${tap()} TO PLAY AGAIN</p>${full()}`);
