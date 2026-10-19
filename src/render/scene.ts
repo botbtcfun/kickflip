@@ -3,7 +3,7 @@ import type { Game, GameEvent } from '../sim/game';
 import type { Thing } from '../sim/objects';
 import { LAND_TICKS, PERFECT_DIV, QUARTER, RESET_TICKS, ROLL_TICKS, TICK_HZ, TURN } from '../sim/rules';
 import { type Faces, facesOf } from './faces';
-import { mix, noise } from './paint';
+import { BTC, drawText, mix, noise, textWidth } from './paint';
 import { NOZZLES, sneaker } from './things';
 
 /** The stage's width in pixels as drawn, wider where a frame is wider; its height fits the screen, at least MIN_HEIGHT. */
@@ -47,6 +47,32 @@ export interface Session {
   /** Once a frame, after drawing. */
   onFrame(): void;
 }
+
+/** A block for the chain in the sky: mined at a height, as PERFECT, CLEAN or a trick, or orphaned by a miss. */
+export interface ChainBlock {
+  height: number;
+  kind: 'perfect' | 'clean' | 'trick' | 'orphan';
+  hash: string;
+  /** The last block before a halving, marked on the chain. */
+  halving: boolean;
+}
+
+/** Front, top and side colours of a block, by kind. */
+const BLOCK_COLORS: Record<ChainBlock['kind'] | 'genesis' | 'last', [string, string, string]> = {
+  genesis: ['#5a5a6e', '#8c8c99', '#3a3a46'],
+  perfect: ['#23a9b9', '#7ff7ff', '#14707c'],
+  clean: ['#36a85e', '#8dff9f', '#1f6e3a'],
+  trick: ['#d9a520', '#ffe08a', '#8a6410'],
+  orphan: ['#c0384f', '#ff6d81', '#7a1f30'],
+  last: ['#f7931a', '#ffc46a', '#a85a08'],
+};
+/** A block on the chain: its front face, the depth of its top and side, and the gap a link spans. */
+const BLOCK_W = 30;
+const BLOCK_H = 20;
+const BLOCK_DEPTH = 5;
+const LINK = 12;
+const ORPHAN_MS = 900;
+const SLIDE_MS = 350;
 
 export interface Input {
   sample(): number;
@@ -100,6 +126,9 @@ export class Scene {
   private backdrop: HTMLCanvasElement | null = null;
   private meter: { key: string; canvas: HTMLCanvasElement } | null = null;
   private puffs: Puff[] = [];
+  /** The run's chain: blocks mined, each with when it came; and orphans, falling off its end. */
+  private chain: (ChainBlock & { at: number })[] = [];
+  private orphans: (ChainBlock & { at: number })[] = [];
   private raf = 0;
   private last = 0;
   private acc = 0;
@@ -172,6 +201,13 @@ export class Scene {
     this.acc = 0;
     this.puffs = [];
     this.shake.left = this.freeze = this.flash = 0;
+    this.chain = [];
+    this.orphans = [];
+  }
+
+  /** A landing's block: onto the end of the chain, or, orphaned, falling off it. */
+  block(b: ChainBlock): void {
+    (b.kind === 'orphan' ? this.orphans : this.chain).push({ ...b, at: this.now });
   }
 
   /** A tap: the object hops a little, to show it felt it. */
@@ -214,6 +250,7 @@ export class Scene {
       ctx.translate(Math.round((Math.random() * 2 - 1) * k), Math.round((Math.random() * 2 - 1) * k));
     }
     ctx.drawImage(this.street(), 0, 0);
+    this.drawChain();
     const poses = this.poses(game, a);
     const charge = this.session.paused ? null : this.input.charge();
     for (const p of poses) this.shadow(p);
@@ -468,6 +505,79 @@ export class Scene {
       p.y += p.vy * dt;
     }
     this.puffs = this.puffs.filter((p) => p.age < p.life);
+  }
+
+  /**
+   * The run's chain across the sky, from the genesis block: each landing's
+   * block linked to the last, its height on its face, cyan for PERFECT,
+   * green for CLEAN, gold for a trick, the 21st in bitcoin orange with a ₿;
+   * the newest block's hash under it. A new block slides in at the right end
+   * and the chain moves along; a halving's block has a gold mark; an orphan
+   * drops off the end in red.
+   */
+  private drawChain(): void {
+    const ctx = this.ctx;
+    const step = BLOCK_W + LINK;
+    const y = Math.max(56, this.groundY - 250);
+    const all: (ChainBlock & { at: number; genesis?: boolean })[] = [{ height: 0, kind: 'clean', hash: '', halving: false, at: -Infinity, genesis: true }, ...this.chain];
+    const newest = this.chain[this.chain.length - 1];
+    const slide = newest ? (1 - easeOut(Math.min(1, (this.now - newest.at) / SLIDE_MS))) * step : 0;
+    const right = this.width - 20;
+    for (let i = all.length - 1; i >= 0; i--) {
+      const b = all[i]!;
+      const x = Math.round(right - BLOCK_W - (all.length - 1 - i) * step + slide);
+      if (x + BLOCK_W + step < 0) break;
+      // The link back to the block before.
+      if (i > 0) {
+        ctx.fillStyle = '#8c8c99';
+        for (let dx = 0; dx < LINK; dx++) if (dx % 4 !== 3) ctx.fillRect(x - LINK + dx, y + BLOCK_DEPTH + BLOCK_H / 2 - (dx % 4 === 1 ? 2 : 1), 1, dx % 4 === 1 ? 4 : 2);
+      }
+      const colors = b.genesis ? BLOCK_COLORS.genesis : b.height === 21 ? BLOCK_COLORS.last : BLOCK_COLORS[b.kind];
+      this.cube(x, y, colors);
+      if (b.height === 21) {
+        // The last bitcoin's block: a ₿ on its face.
+        ctx.fillStyle = '#fff4e6';
+        BTC.forEach((row, ry) => [...row].forEach((c, rx) => c === 'X' && ry < 13 && ctx.fillRect(x + 11 + rx, y + BLOCK_DEPTH + 4 + Math.floor(ry * 0.92), 1, 1)));
+      } else {
+        const label = b.genesis ? 'GEN' : String(b.height);
+        const scale = label.length > 2 ? 1 : 2;
+        drawText(ctx, label, x + Math.round((BLOCK_W - textWidth(label, scale)) / 2), y + BLOCK_DEPTH + Math.round((BLOCK_H - 5 * scale) / 2), '#14121c', scale);
+      }
+      if (b.halving) {
+        ctx.fillStyle = SODIUM;
+        ctx.fillRect(x + BLOCK_W - 5, y + BLOCK_DEPTH + 2, 3, 3);
+      }
+    }
+    // The newest block's hash under it: its zeros in front are its proof of work.
+    if (newest?.hash) {
+      const hash = newest.hash.slice(0, 12).toUpperCase();
+      drawText(ctx, hash, Math.round(right - textWidth(hash) + slide), y + BLOCK_DEPTH + BLOCK_H + 4, newest.height === 21 ? '#ffc46a' : BLOCK_COLORS[newest.kind][1]);
+    }
+    // Orphans fall off the end of the chain, and fade.
+    for (const o of this.orphans) {
+      const t = (this.now - o.at) / ORPHAN_MS;
+      if (t >= 1) continue;
+      ctx.globalAlpha = 1 - t;
+      this.cube(Math.round(right - BLOCK_W + 6 + t * 14), Math.round(y + 12 + t * t * 140), BLOCK_COLORS.orphan);
+      ctx.globalAlpha = 1;
+    }
+    this.orphans = this.orphans.filter((o) => this.now - o.at < ORPHAN_MS);
+  }
+
+  /** A block drawn as a box: its front, its top and its side, with a dark rim. */
+  private cube(x: number, y: number, [front, top, side]: [string, string, string]): void {
+    const ctx = this.ctx;
+    const d = BLOCK_DEPTH;
+    ctx.fillStyle = top;
+    for (let r = 0; r < d; r++) ctx.fillRect(x + d - r, y + r, BLOCK_W, 1);
+    ctx.fillStyle = side;
+    for (let c = 0; c < d; c++) ctx.fillRect(x + BLOCK_W + c, y + d - c, 1, BLOCK_H);
+    ctx.fillStyle = '#14121c';
+    ctx.fillRect(x - 1, y + d - 1, BLOCK_W + 2, BLOCK_H + 2);
+    ctx.fillStyle = front;
+    ctx.fillRect(x, y + d, BLOCK_W, BLOCK_H);
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    ctx.fillRect(x, y + d, BLOCK_W, 1);
   }
 
   /**

@@ -151,3 +151,76 @@ export function wheel(dx: number, dy: number, r: number): string {
   const spoke = (((Math.atan2(dy, dx) / ((2 * Math.PI) / 5)) % 1) + 1) % 1;
   return spoke < 0.13 || spoke > 0.87 ? '#a4a6b4' : '#30303c';
 }
+
+/** A 3 by 5 pixel font, each glyph five rows of X: digits, capitals, a few marks. */
+const FONT: Record<string, string> = {
+  '0': 'XXX X.X X.X X.X XXX',
+  '1': '.X. XX. .X. .X. XXX',
+  '2': 'XXX ..X XXX X.. XXX',
+  '3': 'XXX ..X XXX ..X XXX',
+  '4': 'X.X X.X XXX ..X ..X',
+  '5': 'XXX X.. XXX ..X XXX',
+  '6': 'XXX X.. XXX X.X XXX',
+  '7': 'XXX ..X ..X ..X ..X',
+  '8': 'XXX X.X XXX X.X XXX',
+  '9': 'XXX X.X XXX ..X XXX',
+  A: '.X. X.X XXX X.X X.X',
+  B: 'XX. X.X XX. X.X XX.',
+  C: '.XX X.. X.. X.. .XX',
+  D: 'XX. X.X X.X X.X XX.',
+  E: 'XXX X.. XX. X.. XXX',
+  F: 'XXX X.. XX. X.. X..',
+  G: '.XX X.. X.X X.X .XX',
+  H: 'X.X X.X XXX X.X X.X',
+  I: 'XXX .X. .X. .X. XXX',
+  K: 'X.X X.X XX. X.X X.X',
+  L: 'X.. X.. X.. X.. XXX',
+  M: 'X.X XXX XXX X.X X.X',
+  N: 'XX. X.X X.X X.X X.X',
+  O: '.X. X.X X.X X.X .X.',
+  P: 'XX. X.X XX. X.. X..',
+  R: 'XX. X.X XX. X.X X.X',
+  S: '.XX X.. .X. ..X XX.',
+  T: 'XXX .X. .X. .X. .X.',
+  U: 'X.X X.X X.X X.X XXX',
+  V: 'X.X X.X X.X X.X .X.',
+  W: 'X.X X.X XXX XXX X.X',
+  X: 'X.X X.X .X. X.X X.X',
+  Y: 'X.X X.X .X. .X. .X.',
+  '.': '... ... ... ... .X.',
+  '-': '... ... XXX ... ...',
+  '#': 'X.X XXX X.X XXX X.X',
+};
+
+/** How wide `str` is in the pixel font, `scale` times as large. */
+export const textWidth = (str: string, scale = 1) => (str.length * 4 - 1) * scale;
+
+/** Whether a point is on `str` written in the pixel font from (x0, y0), `scale` times as large. */
+export function onText(str: string, x: number, y: number, x0: number, y0: number, scale = 1): boolean {
+  const cx = Math.floor((x - x0) / scale);
+  const cy = Math.floor((y - y0) / scale);
+  if (cx < 0 || cy < 0 || cy >= 5) return false;
+  const col = cx % 4;
+  const ch = str[Math.floor(cx / 4)];
+  if (!ch || col === 3) return false;
+  return FONT[ch.toUpperCase()]?.split(' ')[cy]?.[col] === 'X';
+}
+
+/** Writes `str` in the pixel font on a canvas, from (x, y). */
+export function drawText(ctx: CanvasRenderingContext2D, str: string, x: number, y: number, color: string, scale = 1): void {
+  ctx.fillStyle = color;
+  [...str].forEach((ch, i) => {
+    FONT[ch.toUpperCase()]?.split(' ').forEach((row, ry) => {
+      [...row].forEach((c, rx) => c === 'X' && ctx.fillRect(x + (i * 4 + rx) * scale, y + ry * scale, scale, scale));
+    });
+  });
+}
+
+/** The ₿, nine by thirteen. */
+export const BTC = ['..X.X....', '..X.X....', 'XXXXXXX..', '.XX...XX.', '.XX...XX.', '.XX..XX..', '.XXXXX...', '.XX..XXX.', '.XX....XX', '.XX....XX', 'XXXXXXXX.', '..X.X....', '..X.X....'];
+
+/** Whether a point is on a glyph of rows of X, drawn from (x0, y0) at `scale`. */
+export function onGlyph(glyph: string[], x: number, y: number, x0: number, y0: number, scale: number): boolean {
+  const row = glyph[Math.floor((y - y0) / scale)];
+  return !!row && x >= x0 && row[Math.floor((x - x0) / scale)] === 'X';
+}

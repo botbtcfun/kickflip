@@ -87,16 +87,20 @@ class Run implements Session {
     for (const e of events) {
       if (e.type === 'land') {
         const l = e.landing;
-        // The Roadster and the cat land anything: say so when the flick alone would have missed.
+        // The Roadster and the laser cat land anything: say so when the flick alone would have missed.
         const quirk = this.game.thing.quirk;
         const missed = Math.abs(l.error) > l.window;
-        const notes = [!missed ? '' : quirk === 'thrusters' ? 'THRUSTERS SAVED IT' : quirk === 'feet' ? 'ON ITS FEET, AS EVER' : ''];
-        if (l.lives) notes.push(l.lives === 1 ? '+1 LIFE' : `+${l.lives} LIVES`);
-        if (l.clean && this.game.level === LAST_LEVEL) notes.push('SUPPLY CAPPED AT 21M');
-        // The last block of an epoch: the subsidy halves from the next.
+        // The notes that matter most first: the cap, the halving, lives, then the Roadster's or the laser cat's save.
         const halving = l.clean && this.game.level % HALVING_EVERY === 0;
-        if (halving) notes.push(`HALVING! SUBSIDY ${points(subsidyAt(this.game.level + 1))}`);
-        hud.verdict(l, (scene.groundY - 170) * scene.zoom, this.game.level, blockHash(l, this.game.level), notes.filter(Boolean).join('<br>'));
+        const notes = [
+          l.clean && this.game.level === LAST_LEVEL ? 'SUPPLY CAPPED AT 21M' : '',
+          halving ? `HALVING! SUBSIDY ${points(subsidyAt(this.game.level + 1))}` : '',
+          l.lives ? (l.lives === 1 ? '+1 LIFE' : `+${l.lives} LIVES`) : '',
+          !missed ? '' : quirk === 'thrusters' ? 'THRUSTERS SAVED IT' : quirk === 'feet' ? 'ON ITS FEET, AS EVER' : '',
+        ].filter(Boolean);
+        hud.verdict(l, (scene.groundY - 150) * scene.zoom, this.game.level, notes);
+        // The block goes on the chain in the sky, or falls off it, orphaned.
+        scene.block({ height: this.game.level, kind: !l.clean ? 'orphan' : l.extra ? 'trick' : l.verdict === 'perfect' ? 'perfect' : 'clean', hash: blockHash(l, this.game.level), halving });
         if (l.clean) sound.land(l, this.game.streak);
         else sound.miss();
         if (l.lives) sound.life();

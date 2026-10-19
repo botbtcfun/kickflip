@@ -261,79 +261,86 @@ body.touch .loading {
   color: var(--dim);
 }
 
-/* PERFECT, CLEAN, UNDER or OVER, over the meter after a landing. */
+/* PERFECT, CLEAN, UNDER or OVER, over the meter after a landing: on a dark panel, big, and up long enough to read. */
 .verdict {
   position: absolute;
   left: 0;
   right: 0;
   opacity: 0;
-  line-height: 1.4;
   text-align: center;
-  font-family: var(--pixel);
-  font-size: 16px;
-  text-shadow: 2px 2px 0 var(--sky);
   pointer-events: none;
+}
+
+.verdict .panel {
+  display: inline-block;
+  padding: 8px 12px 9px;
+  line-height: 1.5;
+  font-family: var(--pixel);
+  background: rgba(20, 18, 28, 0.72);
+  border: 2px solid rgba(255, 244, 230, 0.12);
+}
+
+.verdict b {
+  display: block;
+  font-weight: normal;
+  font-size: 16px;
+  text-shadow: 2px 2px 0 #000;
 }
 
 .verdict small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--ink);
 }
 
-/* The block's hash: zeros in front for a good landing, as with proof of work. */
-.verdict .hash {
-  font-family: var(--crt);
-  font-size: 18px;
-  letter-spacing: 1px;
-  color: var(--neon);
-}
-
-.verdict.under .hash,
-.verdict.over .hash {
-  color: var(--bad);
+.verdict em {
+  display: block;
+  margin-top: 2px;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--sodium);
 }
 
 .verdict.show {
-  animation: pop 1.2s ease-out forwards;
+  animation: pop 2.2s ease-out forwards;
 }
 
-.verdict.perfect {
+.verdict.perfect b {
   color: var(--neon);
 }
 
-.verdict.clean {
+.verdict.clean b {
   color: var(--good);
 }
 
-.verdict.trick {
+.verdict.trick b {
   color: var(--sodium);
   text-shadow: 2px 2px 0 var(--sun);
 }
 
-.verdict.under,
-.verdict.over {
+.verdict.under b,
+.verdict.over b {
   color: var(--bad);
 }
 
 @keyframes pop {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.7);
+    transform: translateY(8px) scale(0.8);
   }
-  12% {
+  8% {
     opacity: 1;
-    transform: translateY(0) scale(1.15);
+    transform: translateY(0) scale(1.08);
   }
-  24% {
+  15% {
     transform: scale(1);
   }
-  75% {
+  82% {
     opacity: 1;
   }
   100% {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-6px);
   }
 }
 
@@ -523,9 +530,8 @@ body.narrow .card .meta {
   font-size: 16px;
 }
 
-body.narrow .verdict .hash {
-  font-size: 16px;
-  letter-spacing: 0;
+body.narrow .verdict b {
+  font-size: 14px;
 }
 
 .card .meta span {

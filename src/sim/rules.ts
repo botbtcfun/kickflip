@@ -3,7 +3,7 @@
  * in thousandths of a degree; heights in thousandths of a pixel. A change
  * here changes what a run scores, so bump RULES_VERSION with it.
  */
-export const RULES_VERSION = 7;
+export const RULES_VERSION = 8;
 export const TICK_HZ = 60;
 
 /** A full turn, in thousandths of a degree. */

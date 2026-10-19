@@ -6,12 +6,14 @@ the right strength and it lands on its wheels, or its feet, and the next one
 rolls in. Too soft or too hard and it lands on its side or its roof, and a
 life goes.
 
-There are 21 things to flip, and most were never meant to be: a roadster
-with thrusters under its floor, a skateboard, a pizza box, a brick, a
-penguin, a giraffe, a fridge, a cat. Each run starts with the same six, then
-the day's draw brings the rest, everyday things first, then the heavy ones,
-then the odd ones. The 21st is always the last bitcoin, as Bitcoin stops at
-21 million. A run that gets to 21 meets every one once.
+There are 21 things to flip, all of them Bitcoin things, and most were
+never meant to be flipped: a roadster with thrusters under its floor, the
+bitcoin pizza, a hardware wallet, the orange pill, a Bitcoin ATM, a HODL
+sign, a full node, a bull, cold storage, an ASIC miner, a whale, a laser
+cat. Each run starts with the same six, then the day's draw brings the rest,
+everyday things first, then the heavy ones, then the odd ones. The 21st is
+always the last bitcoin, as Bitcoin stops at 21 million. A run that gets to
+21 meets every one once.
 
 [Play it](https://kickflip.botbtc.fun), or
 [watch 20 seconds of it](https://kickflip.botbtc.fun/clip.mp4). To share it on X, post
@@ -34,13 +36,15 @@ which X may show as the game itself, playable in the post.
   fell: PERFECT in the bright middle, CLEAN in the green.
 - **Weight.** Light things spin easily and are easy to overdo; heavy ones
   need a hard flick. The card under each object says which it is.
-- **Quirks.** The roadster's thrusters land anything, and the cat always
-  lands on its feet. The paper plane and the toast need two turns. The
-  banana and the bowling pin are narrow, and the fish is slippery: they
-  forgive less.
-- **Blocks.** Every landing mines a block, and the verdict shows its hash:
+- **Quirks.** The roadster's thrusters land anything, and the laser cat
+  always lands on its feet. The whitepaper, folded into a plane, and the
+  paper wallet need two turns. The lightning bolt and the green candle are
+  narrow, and the whale is slippery: they forgive less.
+- **Blocks.** Every landing mines a block, and the chain grows across the
+  sky behind the street: green for clean, teal for PERFECT, gold for a
+  trick, with a mark at each halving. The newest block shows its hash, with
   more zeros in front the closer the flick came, as with proof of work, and
-  ten for a dead-on PERFECT. A miss orphans the block. Your streak is your
+  ten for a dead-on PERFECT. A miss orphans the block, which falls off the
   chain. The 21st object is a coin, the last bitcoin, flipped like one: land
   it heads up and the supply is capped.
 - **Score, in sats.** Each block pays its subsidy, 1,000 sats at first,

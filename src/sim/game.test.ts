@@ -43,12 +43,12 @@ function sweet(game: Game): Landing {
 
 describe('the flip', () => {
   it('spins a standard object a full turn at 500, a light one sooner, a heavy one later', () => {
-    expect(sweetSpot(thing('skateboard'))).toBe(500);
+    expect(sweetSpot(thing('pizzabox'))).toBe(500);
     expect(sweetSpot(LIGHT)).toBe(357);
-    expect(sweetSpot(thing('brick'))).toBe(833);
+    expect(sweetSpot(thing('block'))).toBe(833);
     expect(Math.abs(gain(LIGHT) * 357 - goal(LIGHT))).toBeLessThan(1000);
     // A double: two turns on a light object, a hard flick with a light touch.
-    expect(sweetSpot(thing('plane'))).toBe(714);
+    expect(sweetSpot(thing('whitepaper'))).toBe(714);
   });
 
   it('lands every object PERFECT at its sweet spot', () => {
@@ -56,7 +56,7 @@ describe('the flip', () => {
   });
 
   it('lands clean right up to the window and not past it', () => {
-    const board = thing('skateboard');
+    const board = thing('pizzabox');
     // At level 2 the window is 80 degrees, 111 of intensity either way: 389 to 611 for 500.
     expect(flip(board, 611).landing.verdict).toBe('clean');
     expect(flip(board, 612).landing.verdict).toBe('over');
@@ -86,16 +86,16 @@ describe('the flip', () => {
     expect(airtime(1000)).toBe(72);
     // Past 1000 it climbs half as fast, so a triple still comes down on screen.
     expect(airtime(R.INTENSITY_MAX)).toBe(87);
-    const soft = flip(thing('skateboard'), 200).flight;
-    const hard = flip(thing('skateboard'), 900).flight;
+    const soft = flip(thing('pizzabox'), 200).flight;
+    const hard = flip(thing('pizzabox'), 900).flight;
     let [softTop, hardTop] = [0, 0];
     for (const [f, set] of [
       [soft, (h: number) => (softTop = Math.max(softTop, h))],
       [hard, (h: number) => (hardTop = Math.max(hardTop, h))],
     ] as const) {
-      const g = launch(thing('skateboard'), f.intensity);
+      const g = launch(thing('pizzabox'), f.intensity);
       while (g.t < g.air) {
-        fly(g, thing('skateboard'));
+        fly(g, thing('pizzabox'));
         set(g.height);
       }
       expect(g.height).toBe(0);
@@ -116,8 +116,8 @@ describe('the flip', () => {
     expect(flip(car, 900, 1).landing.verdict).toBe('clean');
   });
 
-  it('lands a cat on its feet whatever the flick', () => {
-    const cat = thing('cat');
+  it('lands the laser cat on its feet whatever the flick', () => {
+    const cat = thing('lasercat');
     for (const i of [R.INTENSITY_MIN, 300, 500, 900, R.INTENSITY_MAX]) {
       const { flight, landing } = flip(cat, i, 15);
       expect(flight.angle % R.TURN).toBe(0);
@@ -126,16 +126,16 @@ describe('the flip', () => {
   });
 
   it('gives narrow and slippery things less of the window', () => {
-    expect(windowFor(thing('banana'), 2)).toBe((80_000 * R.NARROW_PERCENT) / 100);
-    expect(windowFor(thing('fish'), 2)).toBe((80_000 * R.SLIPPERY_PERCENT) / 100);
-    expect(windowFor(thing('skateboard'), 2)).toBe(80_000);
+    expect(windowFor(thing('lightning'), 2)).toBe((80_000 * R.NARROW_PERCENT) / 100);
+    expect(windowFor(thing('whale'), 2)).toBe((80_000 * R.SLIPPERY_PERCENT) / 100);
+    expect(windowFor(thing('pizzabox'), 2)).toBe(80_000);
     // 600 on a standard object is 72 degrees over: clean with the full window, not with a narrow one.
-    expect(flip(thing('skateboard'), 600).landing.clean).toBe(true);
-    expect(flip(thing('banana'), 600).landing.verdict).toBe('over');
+    expect(flip(thing('pizzabox'), 600).landing.clean).toBe(true);
+    expect(flip(thing('lightning'), 600).landing.verdict).toBe('over');
   });
 
   it('lands a double or a triple clean, for more', () => {
-    const board = thing('skateboard');
+    const board = thing('pizzabox');
     const double = flip(board, 1000).landing;
     expect([double.verdict, double.turns, double.extra]).toEqual(['perfect', 2, 1]);
     expect(double.rest).toBe(2 * R.TURN);
@@ -146,7 +146,7 @@ describe('the flip', () => {
     expect(flip(board, 1000 + 112).landing.clean).toBe(false);
     // A light object reaches a triple sooner; a heavy one no further than a double.
     expect(flip(LIGHT, 1071).landing.turns).toBe(3);
-    expect(flip(thing('brick'), R.INTENSITY_MAX).landing.turns).toBeLessThanOrEqual(2);
+    expect(flip(thing('block'), R.INTENSITY_MAX).landing.turns).toBeLessThanOrEqual(2);
   });
 
   it('never lands the strongest flick, so flicking as hard as you can never pays', () => {
@@ -166,7 +166,7 @@ describe('the flip', () => {
   });
 
   it('wants two turns from a double', () => {
-    const plane = thing('plane');
+    const plane = thing('whitepaper');
     expect(flip(plane, 714).landing.verdict).toBe('perfect');
     // One turn's worth lands it on its back, or near enough: a miss.
     expect(flip(plane, 357).landing.verdict).toBe('under');
@@ -187,15 +187,15 @@ describe('the flip', () => {
     expect(thrusts(200).some((t) => t > 0)).toBe(true);
     expect(thrusts(700).some((t) => t < 0)).toBe(true);
     // Nothing else has thrusters.
-    const board = launch(thing('skateboard'), 200);
+    const board = launch(thing('pizzabox'), 200);
     while (board.t < board.air) {
-      fly(board, thing('skateboard'));
+      fly(board, thing('pizzabox'));
       expect(board.thrust).toBe(0);
     }
   });
 
   it('comes to rest on a side or the roof when it misses', () => {
-    const board = thing('skateboard');
+    const board = thing('pizzabox');
     // Too little: a quarter turn is the nearest rest.
     expect(flip(board, R.INTENSITY_MIN).landing.rest).toBe(R.QUARTER);
     // Half a turn: on its roof.
@@ -224,7 +224,7 @@ describe('a run', () => {
       seen.push(game.thing.id);
       sweet(game);
     }
-    expect(seen).toEqual(['skateboard', 'pizzabox', 'sneaker', 'brick', 'penguin']);
+    expect(seen).toEqual(['pizzabox', 'wallet', 'pill', 'block', 'atm']);
     settle(game);
     expect(game.level).toBe(7);
   });
@@ -234,9 +234,9 @@ describe('a run', () => {
     // PERFECT on the Roadster, object 1: the subsidy and a 100-sat fee.
     const first = flick(game, 500);
     expect([first.subsidy, first.fees, first.points]).toEqual([1000, 100, 1100]);
-    // PERFECT on the skateboard, object 2, chain 2.
+    // PERFECT on the pizza, object 2, chain 2.
     expect(flick(game, 500).points).toBe((1000 + 200) * 2);
-    // CLEAN, not PERFECT, on the pizza box: the subsidy alone, chain 3.
+    // CLEAN, not PERFECT, on the wallet: the subsidy alone, chain 3.
     const clean = flick(game, 560);
     expect([clean.verdict, clean.fees, clean.points]).toEqual(['clean', 0, 1000 * 3]);
     expect(game.score).toBe(1100 + 2400 + 3000);
@@ -250,7 +250,7 @@ describe('a run', () => {
   it('pays a trick as fees, which never halve', () => {
     const game = new Game('day:1');
     flick(game, 500);
-    // A PERFECT double on the skateboard, object 2, chain 2: the PERFECT fee and one extra turn's.
+    // A PERFECT double on the pizza, object 2, chain 2: the PERFECT fee and one extra turn's.
     const l = flick(game, 1000);
     expect(l.extra).toBe(1);
     expect(l.fees).toBe(2 * (R.FEE_PERFECT + R.FEE_PER_EXTRA_TURN));
@@ -283,20 +283,20 @@ describe('a run', () => {
     expect(game.streak).toBe(0);
     expect(game.best).toBe(2);
     settle(game);
-    expect(game.thing.id).toBe('pizzabox');
+    expect(game.thing.id).toBe('wallet');
     expect(game.level).toBe(3);
   });
 
   it('earns a life for two PERFECTs in a row, then counts again from none', () => {
     const game = new Game('day:1');
-    // Roadster and skateboard, both PERFECT: a life.
+    // Roadster and pizza, both PERFECT: a life.
     expect(flick(game, 500).lives).toBe(0);
     expect(game.perfectRun).toBe(1);
     const second = flick(game, 500);
     expect([second.verdict, second.lives]).toEqual(['perfect', 1]);
     expect(game.lives).toBe(4);
     expect(game.perfectRun).toBe(0);
-    // The pizza box PERFECT starts a new pair; the sneaker's completes it.
+    // The wallet's PERFECT starts a new pair; the orange pill's completes it.
     expect(sweet(game).lives).toBe(0);
     expect(sweet(game).lives).toBe(1);
     expect(game.lives).toBe(R.MAX_LIVES);
@@ -309,12 +309,12 @@ describe('a run', () => {
   it('breaks a PERFECT pair with a landing that is only CLEAN, or a miss', () => {
     const game = new Game('day:1');
     flick(game, 500);
-    // Clean, not PERFECT: 72 degrees over on the skateboard.
+    // Clean, not PERFECT: 72 degrees over on the pizza.
     expect(flick(game, 600).verdict).toBe('clean');
     expect(game.perfectRun).toBe(0);
     expect(sweet(game).lives).toBe(0);
     expect(game.perfectRun).toBe(1);
-    // A miss on the sneaker breaks the pair too.
+    // A miss on the orange pill breaks the pair too.
     expect(flick(game, 150).verdict).toBe('under');
     expect(game.perfectRun).toBe(0);
     expect(game.lives).toBe(2);
@@ -325,11 +325,11 @@ describe('a run', () => {
     flick(game, 500);
     flick(game, 300);
     expect(game.lives).toBe(2);
-    // A PERFECT double on the skateboard: one for the extra turn.
+    // A PERFECT double on the pizza: one for the extra turn.
     const double = flick(game, 1000);
     expect([double.extra, double.lives]).toEqual([1, 1]);
     expect(game.lives).toBe(3);
-    // A clean triple on the pizza box, not PERFECT: two.
+    // A clean triple on the wallet, not PERFECT: two.
     const triple = flick(game, 1540);
     expect([triple.verdict, triple.extra, triple.lives]).toEqual(['clean', 2, 2]);
     expect(game.lives).toBe(5);
@@ -353,7 +353,7 @@ describe('a run', () => {
     settle(game);
     expect(game.over).toBe(true);
     expect(game.lives).toBe(0);
-    expect(game.thing.id).toBe('skateboard');
+    expect(game.thing.id).toBe('pizzabox');
     const score = game.score;
     const hash = game.hash();
     game.step(500);
@@ -376,7 +376,7 @@ describe('a run', () => {
       }
     }
     expect(launched).toBe(1 + airtime(500) + R.LAND_TICKS);
-    expect(game.thing.id).toBe('skateboard');
+    expect(game.thing.id).toBe('pizzabox');
   });
 
   it('cuts a roll-in short with a flick', () => {
@@ -430,14 +430,14 @@ describe('the input log', () => {
 
   it('matches the recorded golden run for this version of the rules', () => {
     const { game, log } = scripted('golden');
-    expect(R.RULES_VERSION).toBe(7);
+    expect(R.RULES_VERSION).toBe(8);
     expect({ score: game.score, landed: game.index, tick: game.tick, hash: game.hash(), bytes: log.encode().length }).toMatchInlineSnapshot(`
       {
         "bytes": 58,
-        "hash": 1056863487,
+        "hash": 1275261009,
         "landed": 7,
         "score": 15400,
-        "tick": 1268,
+        "tick": 1274,
       }
     `);
   });
@@ -459,7 +459,7 @@ describe('the input log', () => {
 describe('the sequence', () => {
   it('has 21 objects: six openers, fourteen in the pool, and the last bitcoin', () => {
     expect(Object.keys(OBJECTS)).toHaveLength(21);
-    expect(OPENERS).toEqual(['roadster', 'skateboard', 'pizzabox', 'sneaker', 'brick', 'penguin']);
+    expect(OPENERS).toEqual(['roadster', 'pizzabox', 'wallet', 'pill', 'block', 'atm']);
     expect(POOL).toHaveLength(14);
     expect(LAST).toBe('coin');
   });

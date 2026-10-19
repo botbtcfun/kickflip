@@ -47,12 +47,13 @@ export class Hud {
 
   /** The verdict, popping up `top` CSS pixels from the top of the stage. */
   /**
-   * The verdict, popping up `top` CSS pixels from the top of the stage. A
-   * landing mines a block, at `height`: its title says so, or a trick's name,
-   * or ORPHANED for a miss; then PERFECT or CLEAN and the points, or UNDER or
-   * OVER and the life it cost; then the block's hash, and any notes.
+   * The verdict, popping up `top` CSS pixels from the top of the stage, on a
+   * dark panel so it reads over anything: the block it mined at `height`, or
+   * a trick's name, or ORPHANED for a miss; then PERFECT or CLEAN and the
+   * pay, or UNDER or OVER and the life it cost; then up to two notes. The
+   * block's hash and the rest are on the chain in the sky.
    */
-  verdict(l: Landing, top: number, height: number, hash: string, note = ''): void {
+  verdict(l: Landing, top: number, height: number, notes: string[] = []): void {
     const v = this.verdictBox;
     v.className = 'verdict';
     // Restarts the animation for a verdict like the last one.
@@ -60,11 +61,11 @@ export class Hud {
     v.style.top = `${Math.round(top)}px`;
     const title = !l.clean ? 'ORPHANED' : l.extra ? `${TRICKS[l.turns] ?? `${l.turns}×`} KICKFLIP!` : `BLOCK ${height} MINED`;
     const sub = l.clean ? `${l.verdict.toUpperCase()} +${points(l.points)}` : `${l.verdict.toUpperCase()} · −1 LIFE`;
-    // What the block paid: its subsidy, any fees, and the chain it's on.
-    const chain = l.clean ? Math.round(l.points / (l.subsidy + l.fees)) : 0;
-    const pay = l.clean ? `<span class="hash">${points(l.subsidy)} SUBSIDY${l.fees ? ` + ${points(l.fees)} FEES` : ''}${chain > 1 ? ` ×${chain}` : ''}</span><br>` : '';
-    const proof = `<span class="hash">${hash}${l.clean ? '' : ' ABOVE TARGET'}</span>`;
-    v.innerHTML = `${title}<small>${sub}<br>${pay}${proof}${note ? `<br>${note}` : ''}</small>`;
+    const extra = notes
+      .slice(0, 2)
+      .map((n) => `<em>${n}</em>`)
+      .join('');
+    v.innerHTML = `<span class="panel"><b>${title}</b><small>${sub}</small>${extra}</span>`;
     v.classList.add('show', l.extra ? 'trick' : l.verdict);
   }
 
