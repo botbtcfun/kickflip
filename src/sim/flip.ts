@@ -43,6 +43,8 @@ export interface Landing {
   /** Where it comes to rest: its wheels, or one of its sides, or its roof. */
   rest: number;
   points: number;
+  /** Lives the landing earned, after the cap. The game sets it, as it does the points. */
+  lives: number;
 }
 
 /** Rotation per unit of intensity, by weight. */
@@ -132,5 +134,5 @@ export function judge(thing: Thing, level: number, f: Flight): Landing {
     }
     rest = q * R.QUARTER;
   }
-  return { verdict: perfect ? 'perfect' : clean ? 'clean' : off < 0 ? 'under' : 'over', clean, turns, extra, error, window, angle: f.angle, rest, points: 0 };
+  return { verdict: perfect ? 'perfect' : clean ? 'clean' : off < 0 ? 'under' : 'over', clean, turns, extra, error, window, angle: f.angle, rest, points: 0, lives: 0 };
 }

@@ -192,8 +192,8 @@ body.touch .loading {
   color: rgba(255, 244, 230, 0.2);
 }
 
-/* The bonus life: gold, and it beats. */
-.lives .bonus {
+/* An earned life past the first three: gold, and it beats. */
+.lives .earned {
   color: var(--sodium);
   animation: beat 0.9s ease-in-out infinite;
 }
@@ -205,7 +205,7 @@ body.touch .loading {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lives .bonus {
+  .lives .earned {
     animation: none;
   }
 }

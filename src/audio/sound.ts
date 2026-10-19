@@ -122,8 +122,8 @@ export class Sound {
     this.tone(0.08, 0.55, 'sawtooth', 0.07, 420, 70, 1200);
   }
 
-  /** The bonus life: a little rising jingle. */
-  bonus(): void {
+  /** A life earned: a little rising jingle. */
+  life(): void {
     [12, 16, 19, 24].forEach((s, i) => this.tone(0.35 + i * 0.08, 0.2, 'square', 0.07, note(s)));
   }
 

@@ -3,7 +3,7 @@
  * in thousandths of a degree; heights in thousandths of a pixel. A change
  * here changes what a run scores, so bump RULES_VERSION with it.
  */
-export const RULES_VERSION = 4;
+export const RULES_VERSION = 5;
 export const TICK_HZ = 60;
 
 /** A full turn, in thousandths of a degree. */
@@ -68,8 +68,12 @@ export const PERFECT_TIMES = 2;
 /** The most a streak of clean landings multiplies the points. */
 export const MAX_STREAK = 8;
 export const LIVES = 3;
-/** When the last life goes, this many more, once a run: a surprise, not shown until then. */
-export const BONUS_LIVES = 1;
+/** Lives are earned: a life for this many PERFECT landings in a row, counting again from none after. */
+export const PERFECTS_FOR_LIFE = 2;
+/** And a life for each turn a trick lands beyond the object's own: one for a double, two for a triple. */
+export const LIVES_PER_EXTRA_TURN = 1;
+/** The most lives a run holds: past this, earned ones are lost, so a run still ends. */
+export const MAX_LIVES = 5;
 
 // Pacing. A swipe skips a roll-in or a reset; the landing always shows.
 /** The landing: the verdict, and a missed object toppling over. */

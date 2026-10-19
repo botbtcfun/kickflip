@@ -42,7 +42,8 @@ which X may show as the game itself, playable in the post.
 - **Tricks.** Two whole turns land too, and so do three: a double kickflip
   pays twice, a triple three times. Flicking as hard as you can never lands
   anything.
-- **Lives.** Three, and when they're gone, a surprise.
+- **Lives.** Three to start. Two PERFECTs in a row earn one more, a double
+  earns one and a triple two, up to five. Earned hearts show in gold.
 
 ## Run it
 

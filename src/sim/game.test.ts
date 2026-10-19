@@ -266,7 +266,8 @@ describe('a run', () => {
     const miss = flick(game, 300);
     expect(miss.verdict).toBe('under');
     expect(miss.points).toBe(0);
-    expect(game.lives).toBe(2);
+    // Two PERFECTs earned a fourth life; the miss took one.
+    expect(game.lives).toBe(R.LIVES);
     expect(game.streak).toBe(0);
     expect(game.best).toBe(2);
     settle(game);
@@ -274,35 +275,65 @@ describe('a run', () => {
     expect(game.level).toBe(3);
   });
 
-  it('gives one bonus life when the three are gone, once', () => {
+  it('earns a life for two PERFECTs in a row, then counts again from none', () => {
     const game = new Game('day:1');
-    flick(game, 500);
-    const bonus: number[] = [];
-    for (let i = 0; i < 3; i++) {
-      settle(game);
-      game.step(700);
-      for (let k = 0; k < 200 && game.phase === 'air'; k++) {
-        game.step(0);
-        if (game.events.some((e) => e.type === 'bonus')) bonus.push(i);
-      }
-    }
-    // The third miss takes the last life and brings the bonus one at once.
-    expect(bonus).toEqual([2]);
-    expect(game.bonusUsed).toBe(true);
-    expect(game.lives).toBe(R.BONUS_LIVES);
-    settle(game);
-    expect(game.over).toBe(false);
-    // Land one, and the bonus life carries on.
-    flick(game, 500);
-    settle(game);
-    expect(game.lives).toBe(1);
-    expect(game.over).toBe(false);
+    // Roadster and skateboard, both PERFECT: a life.
+    expect(flick(game, 500).lives).toBe(0);
+    expect(game.perfectRun).toBe(1);
+    const second = flick(game, 500);
+    expect([second.verdict, second.lives]).toEqual(['perfect', 1]);
+    expect(game.lives).toBe(4);
+    expect(game.perfectRun).toBe(0);
+    // The pizza box PERFECT starts a new pair; the sneaker's completes it.
+    expect(sweet(game).lives).toBe(0);
+    expect(sweet(game).lives).toBe(1);
+    expect(game.lives).toBe(R.MAX_LIVES);
+    // Full: the next pair earns nothing.
+    sweet(game);
+    expect(sweet(game).lives).toBe(0);
+    expect(game.lives).toBe(R.MAX_LIVES);
   });
 
-  it('is over after the bonus life goes too, with the object that did it', () => {
+  it('breaks a PERFECT pair with a landing that is only CLEAN, or a miss', () => {
     const game = new Game('day:1');
     flick(game, 500);
-    for (let i = 0; i < 3; i++) flick(game, 700);
+    // Clean, not PERFECT: 72 degrees over on the skateboard.
+    expect(flick(game, 600).verdict).toBe('clean');
+    expect(game.perfectRun).toBe(0);
+    expect(sweet(game).lives).toBe(0);
+    expect(game.perfectRun).toBe(1);
+    // A miss on the sneaker breaks the pair too.
+    expect(flick(game, 150).verdict).toBe('under');
+    expect(game.perfectRun).toBe(0);
+    expect(game.lives).toBe(2);
+  });
+
+  it('earns a life for a double and two for a triple', () => {
+    const game = new Game('day:1');
+    flick(game, 500);
+    flick(game, 300);
+    expect(game.lives).toBe(2);
+    // A PERFECT double on the skateboard: one for the extra turn.
+    const double = flick(game, 1000);
+    expect([double.extra, double.lives]).toEqual([1, 1]);
+    expect(game.lives).toBe(3);
+    // A clean triple on the pizza box, not PERFECT: two.
+    const triple = flick(game, 1540);
+    expect([triple.verdict, triple.extra, triple.lives]).toEqual(['clean', 2, 2]);
+    expect(game.lives).toBe(5);
+  });
+
+  it('earns no life for a trick the thrusters land', () => {
+    const game = new Game('day:1');
+    const saved = flick(game, 870);
+    expect([saved.clean, saved.extra, saved.lives]).toEqual([true, 0, 0]);
+    expect(game.lives).toBe(R.LIVES);
+  });
+
+  it('is over after three misses, with the object that did it', () => {
+    const game = new Game('day:1');
+    flick(game, 500);
+    for (let i = 0; i < 2; i++) flick(game, 700);
     settle(game);
     expect(game.over).toBe(false);
     flick(game, 700);
@@ -387,14 +418,14 @@ describe('the input log', () => {
 
   it('matches the recorded golden run for this version of the rules', () => {
     const { game, log } = scripted('golden');
-    expect(R.RULES_VERSION).toBe(4);
+    expect(R.RULES_VERSION).toBe(5);
     expect({ score: game.score, landed: game.index, tick: game.tick, hash: game.hash(), bytes: log.encode().length }).toMatchInlineSnapshot(`
       {
-        "bytes": 76,
-        "hash": 3951030693,
-        "landed": 9,
-        "score": 12200,
-        "tick": 1681,
+        "bytes": 58,
+        "hash": 3493769405,
+        "landed": 7,
+        "score": 8800,
+        "tick": 1268,
       }
     `);
   });

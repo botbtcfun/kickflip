@@ -15,15 +15,14 @@ export type GameEvent =
   | { type: 'launch'; intensity: number }
   | { type: 'land'; landing: Landing }
   | { type: 'next'; id: string }
-  /** The last life went, and the bonus one came instead. */
-  | { type: 'bonus' }
   | { type: 'over' };
 
 /**
  * A run: objects one after another, each flipped until it lands on its
- * wheels, three lives in all, and a bonus one when they're gone. Pure and
- * deterministic: the same seed and the same flicks on the same ticks give the
- * same run, in a browser, a Worker or a script. No clock, no Math.random,
+ * wheels. Three lives to start, and more to earn: one for two PERFECT
+ * landings in a row, one for a double, two for a triple, up to five. Pure
+ * and deterministic: the same seed and the same flicks on the same ticks give
+ * the same run, in a browser, a Worker or a script. No clock, no Math.random,
  * integers only.
  */
 export class Game {
@@ -42,8 +41,8 @@ export class Game {
   /** How the last flip landed, until the next flick. */
   landing: Landing | null = null;
   lives = R.LIVES;
-  /** Whether the bonus life has come: once the last life goes, once a run. */
-  bonusUsed = false;
+  /** PERFECT landings in a row toward the next life: back to none when one is earned, or the run of them breaks. */
+  perfectRun = 0;
   score = 0;
   /** Clean landings in a row, and the longest such run. */
   streak = 0;
@@ -102,7 +101,7 @@ export class Game {
   /** A 32-bit hash of the state: two runs that end the same hash the same. */
   hash(): number {
     const f = this.flight;
-    const parts = [this.tick, this.index, this.lives, this.bonusUsed ? 1 : 0, this.score, this.streak, this.best, this.perfects, PHASES.indexOf(this.phase), this.phaseTicks, this.queued, this.over ? 1 : 0];
+    const parts = [this.tick, this.index, this.lives, this.perfectRun, this.score, this.streak, this.best, this.perfects, PHASES.indexOf(this.phase), this.phaseTicks, this.queued, this.over ? 1 : 0];
     if (f) parts.push(f.intensity, f.t, f.angle, f.height);
     let h = 0x811c9dc5;
     for (const n of parts) {
@@ -127,19 +126,25 @@ export class Game {
       // A double pays twice, a triple three times, on top of the rest.
       landing.points = R.OBJECT_POINTS * this.level * (landing.verdict === 'perfect' ? R.PERFECT_TIMES : 1) * Math.min(this.streak, R.MAX_STREAK) * (1 + landing.extra);
       this.score += landing.points;
+      // Lives to earn: one per extra turn of a trick, one for every second PERFECT in a row.
+      let earned = landing.extra * R.LIVES_PER_EXTRA_TURN;
+      if (landing.verdict === 'perfect') {
+        this.perfectRun++;
+        if (this.perfectRun >= R.PERFECTS_FOR_LIFE) {
+          earned++;
+          this.perfectRun = 0;
+        }
+      } else this.perfectRun = 0;
+      landing.lives = Math.max(0, Math.min(earned, R.MAX_LIVES - this.lives));
+      this.lives += landing.lives;
     } else {
       this.streak = 0;
+      this.perfectRun = 0;
       this.lives--;
     }
     this.landing = landing;
     this.enter('landed');
     this.events.push({ type: 'land', landing });
-    // Three lives, officially; then one more, as a surprise.
-    if (this.lives === 0 && !this.bonusUsed) {
-      this.bonusUsed = true;
-      this.lives = R.BONUS_LIVES;
-      this.events.push({ type: 'bonus' });
-    }
   }
 
   private afterLanding(): void {

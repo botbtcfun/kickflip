@@ -31,12 +31,10 @@ export class Hud {
   update(game: Game): void {
     this.set(this.score, points(game.score));
     this.set(this.streak, game.streak >= 2 ? `×${Math.min(game.streak, MAX_STREAK)}` : '');
-    // Three hearts; once they're gone, a gold one for the bonus life.
-    const hearts = game.bonusUsed
-      ? [...Array.from({ length: LIVES }, () => 'lost'), game.lives > 0 ? 'bonus' : 'lost']
-      : Array.from({ length: LIVES }, (_, i) => (i < game.lives ? 'on' : 'lost'));
+    // Three hearts, red, dimmed as they go; earned ones past three in gold.
+    const hearts = Array.from({ length: Math.max(LIVES, game.lives) }, (_, i) => (i >= game.lives ? 'lost' : i < LIVES ? 'on' : 'earned'));
     this.set(this.lives, hearts.map((c) => `<span class="${c}">${HEART}</span>`).join(''));
-    this.lives.setAttribute('aria-label', game.bonusUsed ? (game.lives > 0 ? 'bonus life' : 'no lives') : `${game.lives} lives`);
+    this.lives.setAttribute('aria-label', `${game.lives} ${game.lives === 1 ? 'life' : 'lives'}`);
     const t = game.thing;
     this.set(this.name, t.name);
     const meta = [`NO. ${game.level}`, t.weight.toUpperCase()];

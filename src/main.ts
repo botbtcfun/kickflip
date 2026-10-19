@@ -88,14 +88,13 @@ class Run implements Session {
         // The Roadster and the cat land anything: say so when the flick alone would have missed.
         const quirk = this.game.thing.quirk;
         const missed = Math.abs(l.error) > l.window;
-        let note = !missed ? '' : quirk === 'thrusters' ? 'THRUSTERS SAVED IT' : quirk === 'feet' ? 'ON ITS FEET, AS EVER' : '';
-        // The last life went, and the bonus one came: the surprise.
-        if (events.some((b) => b.type === 'bonus')) note = 'BONUS LIFE! ONE MORE GO';
-        hud.verdict(l, (scene.groundY - 128) * scene.zoom, note);
+        const notes = [!missed ? '' : quirk === 'thrusters' ? 'THRUSTERS SAVED IT' : quirk === 'feet' ? 'ON ITS FEET, AS EVER' : ''];
+        if (l.lives) notes.push(l.lives === 1 ? '+1 LIFE' : `+${l.lives} LIVES`);
+        hud.verdict(l, (scene.groundY - 128) * scene.zoom, notes.filter(Boolean).join('<br>'));
         if (l.clean) sound.land(l, this.game.streak);
         else sound.miss();
+        if (l.lives) sound.life();
       } else if (e.type === 'launch') sound.whoosh(e.intensity);
-      else if (e.type === 'bonus') sound.bonus();
       else if (e.type === 'next') sound.roll();
       else if (e.type === 'over') {
         sound.over();
@@ -138,7 +137,8 @@ function intro(): void {
   const how = isTouch() ? 'SWIPE UP, OR HOLD<br>AND LET GO.' : 'HOLD THE MOUSE OR ↑<br>AND LET GO, OR DRAG UP.';
   hud.overlay(`<h2 class="logo">KICKFLIP</h2>
 <p>${how}<br>LAND IT ON ITS WHEELS.</p>
-<p class="dim">The longer the hold, or the faster the swipe,<br>the more it spins. Two turns land too, for double.<br>Every one is harder. Three lives.</p>
+<p class="dim">The longer the hold, or the faster the swipe,<br>the more it spins. Every one is harder.</p>
+<p class="dim">Three lives. Earn more with two PERFECTs<br>in a row, or a double or triple kickflip.</p>
 <p class="blink">${tap()} TO START</p>${full()}`);
 }
 
